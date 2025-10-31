@@ -1,0 +1,8 @@
+services:
+  spark-worker:
+    build: .
+    container_name: spark-worker
+    env_file:
+      - .env
+    ports:
+      - "8081:8081"  # interface web do worker 

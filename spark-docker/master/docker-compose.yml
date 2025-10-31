@@ -1,0 +1,9 @@
+services:
+  spark-master:
+    build: .
+    container_name: spark-master
+    env_file:
+      - .env
+    ports:
+      - "7077:7077"  # porta do master
+      - "8080:8080"  # interface web do Spark
