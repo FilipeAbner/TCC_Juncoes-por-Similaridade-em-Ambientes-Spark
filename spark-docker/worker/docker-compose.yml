@@ -4,5 +4,8 @@ services:
     container_name: spark-worker
     env_file:
       - .env
+    network_mode: host  # Permite que o container use a rede do host
+    extra_hosts:
+      - "spark-master:${SPARK_MASTER_HOST}"
     ports:
       - "8081:8081"  # interface web do worker 
