@@ -1,4 +1,9 @@
-#!/usr/bin/env bash (Checa se a variavel existe antes de exportar)
+#!/usr/bin/env bash
+# Configurações do Python para PySpark
+export PYSPARK_PYTHON=/usr/local/bin/python3
+export PYSPARK_DRIVER_PYTHON=/usr/local/bin/python3
+
+# Checa se a variavel existe antes de exportar
 [[ -n "${SPARK_WORKER_CORES}" ]] && export SPARK_WORKER_CORES
 [[ -n "${SPARK_WORKER_MEMORY}" ]] && export SPARK_WORKER_MEMORY
 [[ -n "${SPARK_WORKER_PORT}" ]] && export SPARK_WORKER_PORT

@@ -145,9 +145,50 @@ SPARK_WORKER_PORT=7078      # Porta de comunicação do Worker
 
 ## Configuração do Master e Worker na mesma máquina
 
-Siga os mesmos passos do Master e do Worker. Se deseja apenas uma máquina com apenas um Master e um Worker acesse:
+#### 1. Criar rede Docker externa
+```bash
+sudo docker network create spark-network \
+  --driver bridge \
+  --subnet 172.20.0.0/16 \
+  --gateway 172.20.0.1
+```
+
+
+### Executar o Script
+
+#### **Opção A: Via spark-submit no Master (Recomendado)**
 
 ```bash
-cd spark-docker
-sudo docker compose up -d
+# Copiar script para o Master (se ainda não estiver)
+sudo docker cp master/apps/test_spark_basic.py spark-master:/apps/test_spark_basic.py
+
+# Executar com spark-submit
+sudo docker exec -it spark-master \
+  /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --executor-memory 512m \
+  --executor-cores 1 \
+  --total-executor-cores 2 \
+  /apps/test_spark_basic.py
+```
+
+#### **Opção B: Via container interativo**
+
+```bash
+# Entrar no container Master
+sudo docker exec -it spark-master /bin/bash
+
+# Dentro do container, executar:
+spark-submit \
+  --master spark://spark-master:7077 \
+  --executor-memory 512m \
+  --executor-cores 1 \
+  /apps/test_spark_basic.py
+```
+
+## 📊 Consultar Logs Completos
+
+### Ver logs em tempo real:
+```bash
+sudo docker exec spark-master tail -f /opt/spark/logs/spark.log
 ```

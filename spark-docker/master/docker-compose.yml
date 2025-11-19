@@ -2,8 +2,24 @@ services:
   spark-master:
     build: .
     container_name: spark-master
+    hostname: spark-master
     env_file:
       - .env
     ports:
       - "7077:7077"  # porta do master
       - "8080:8080"  # interface web do Spark
+      - "4040:4040"  # interface web da aplicação
+    volumes:
+      - ./apps:/apps
+    networks:
+      spark-network:
+        aliases:
+          - spark-master
+    environment:
+      - SPARK_MASTER_HOST=0.0.0.0
+      - SPARK_MASTER_PORT=7077
+
+networks:
+  spark-network:
+    external: true
+    name: spark-network

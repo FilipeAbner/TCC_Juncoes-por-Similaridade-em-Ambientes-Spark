@@ -1,4 +1,4 @@
-# Dockerfile - Spark Worker
+# Dockerfile - Spark Master
 
 FROM python:3.11-slim AS base
 
@@ -7,7 +7,9 @@ ENV PYSPARK_VERSION=4.0.1 \
     SPARK_TGZ=spark-4.0.1-bin-hadoop3.tgz \
     SPARK_DOWNLOAD_URL=https://dlcdn.apache.org/spark/spark-4.0.1/spark-4.0.1-bin-hadoop3.tgz \
     SPARK_HOME=/opt/spark \
-    PATH=/opt/spark/bin:/opt/spark/sbin:$PATH
+    PATH=/opt/spark/bin:/opt/spark/sbin:$PATH \
+    PYSPARK_PYTHON=/usr/local/bin/python3 \
+    PYSPARK_DRIVER_PYTHON=/usr/local/bin/python3
 
 # Instala dependências necessárias
 RUN apt-get update && \
@@ -43,6 +45,12 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.
 COPY spark-env.sh ${SPARK_HOME}/conf/spark-env.sh
 COPY spark-defaults.conf ${SPARK_HOME}/conf/spark-defaults.conf
 COPY log4j2.properties ${SPARK_HOME}/conf/log4j2.properties
+
+# Torna spark-env.sh executável e ajusta permissões
+RUN chmod +x ${SPARK_HOME}/conf/spark-env.sh && \
+    chown -R spark:spark ${SPARK_HOME}/conf
+
+COPY ../apps/ /apps/
 
 USER ${SPARK_USER}
 WORKDIR /home/${SPARK_USER}
