@@ -31,21 +31,24 @@ Anote o IP (exemplo: `192.168.1.100`)
 
 ### Passo 2: Configurar .env para o Master e Worker
 
-No arquivo `master/.env`, certifique-se que está assim:
+**ATENÇÃO:** Esta é a configuração mais crítica!
+
+No arquivo `master/.env`, **SUBSTITUA** `0.0.0.0` pelo **IP REAL** da máquina Master:
 
 ```env
 SPARK_MODE=master
-SPARK_MASTER_HOST=0.0.0.0
+SPARK_MASTER_HOST=192.168.1.100  # ← SEU IP REAL DA MÁQUINA MASTER AQUI
 SPARK_MASTER_PORT=7077
 SPARK_MASTER_WEBUI_PORT=8080
 ```
 
-No arquivo `worker/.env`, **SUBSTITUA** `192.168.1.100` pelo IP REAL do Master:
+**⚠️ IMPORTANTE:** O Master precisa anunciar seu IP real para que os executores dos Workers consigam conectar de volta. Se usar `0.0.0.0` ou `spark-master`, os Workers registram mas os jobs falham!
+
+No arquivo `worker/.env`, use o **MESMO IP** do Master:
 
 ```env
 SPARK_MODE=worker
-SPARK_MASTER_URL=spark://192.168.1.100:7077  # ← SEU IP DO MASTER AQUI
-SPARK_MASTER_HOST=192.168.1.100              # ← SEU IP DO MASTER AQUI
+SPARK_MASTER_URL=spark://192.168.1.100:7077  # ← MESMO IP DO MASTER
 SPARK_WORKER_WEBUI_PORT=8081
 ```
 
@@ -110,10 +113,31 @@ sudo docker logs -f spark-worker
 
 Se conectou com sucesso, você verá algo como:
 ```
-INFO Worker: Successfully registered with master spark://0.0.0.0:7077
+INFO Worker: Successfully registered with master spark://192.168.1.100:7077
 ```
 
 Verifique também na Web UI do Master (`http://IP_DO_MASTER:8080`), o worker deve aparecer na lista.
+
+### Passo 5: Testar com um job
+
+Execute um job de teste:
+```bash
+# Na máquina do Master
+sudo docker exec -it spark-master \
+  /opt/spark/bin/spark-submit \
+  --master spark://192.168.1.100:7077 \
+  --executor-memory 512m \
+  --executor-cores 1 \
+  --total-executor-cores 2 \
+  /apps/test_spark_basic.py
+```
+
+**⚠️ ATENÇÃO:** Use o IP real do Master no `--master`, não o hostname `spark-master`!
+
+Se os executores não conectarem, verifique:
+1. `SPARK_MASTER_HOST` no Master está com o IP real (não `0.0.0.0`)
+2. Firewall permite tráfego bidirecional na porta 7077
+3. Workers conseguem fazer ping no IP do Master
 
 ---
 
@@ -131,13 +155,11 @@ SPARK_WORKER_PORT=7078      # Porta de comunicação do Worker
 
 ## Topologia do cluster na mesma máquina
 
-
 ```
 ┌─────────────────┐ 
 │   Máquina 1     │
 │                 │  
 │  Spark Master   │
-│  IP: 192.168... │ 
 │  Porta: 7077    │
 │   Spark Worker  │
 └─────────────────┘                           
@@ -151,6 +173,34 @@ sudo docker network create spark-network \
   --driver bridge \
   --subnet 172.20.0.0/16 \
   --gateway 172.20.0.1
+```
+
+#### 2. Configurar .env para mesma máquina
+
+No arquivo `master/.env`:
+```env
+SPARK_MODE=master
+SPARK_MASTER_HOST=0.0.0.0  # ← 0.0.0.0 funciona para mesma máquina
+SPARK_MASTER_PORT=7077
+SPARK_MASTER_WEBUI_PORT=8080
+```
+
+No arquivo `worker/.env`:
+```env
+SPARK_MODE=worker
+SPARK_MASTER_URL=spark://spark-master:7077  # ← hostname funciona na mesma máquina
+SPARK_WORKER_WEBUI_PORT=8081
+```
+
+#### 3. Iniciar os containers
+```bash
+# Master
+cd master
+sudo docker compose up --build
+
+# Worker (em outro terminal)
+cd worker
+sudo docker compose up --build
 ```
 
 
@@ -190,5 +240,5 @@ spark-submit \
 
 ### Ver logs em tempo real:
 ```bash
-sudo docker exec spark-master tail -f /opt/spark/logs/spark.log
+sudo docker exec -it spark-master tail -f /opt/spark/logs/$(sudo docker exec spark-master ls -t /opt/spark/logs/ | grep spark- | head -1)
 ```
