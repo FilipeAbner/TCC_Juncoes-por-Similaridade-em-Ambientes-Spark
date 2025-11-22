@@ -56,5 +56,5 @@ WORKDIR /home/${SPARK_USER}
 # Porta padrão do worker (UI)
 EXPOSE 8081
 
-ENTRYPOINT ["/bin/bash", "-c"]
-CMD ["exec /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker ${SPARK_MASTER_URL}"]
+# Script para substituir variáveis de ambiente no spark-defaults.conf e iniciar Worker
+ENTRYPOINT ["/bin/bash", "-c", "envsubst < ${SPARK_HOME}/conf/spark-defaults.conf > ${SPARK_HOME}/conf/spark-defaults.conf.tmp && mv ${SPARK_HOME}/conf/spark-defaults.conf.tmp ${SPARK_HOME}/conf/spark-defaults.conf && exec /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker ${SPARK_MASTER_URL}"]

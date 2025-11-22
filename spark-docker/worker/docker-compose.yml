@@ -5,9 +5,14 @@ services:
     env_file:
       - .env
     ports:
-      - "8081:8081"  # interface web do worker
+      - "${SPARK_WORKER_WEBUI_PORT}:${SPARK_WORKER_WEBUI_PORT}"
     networks:
       - spark-network
+    environment:
+      - SPARK_MASTER_URL=${SPARK_MASTER_URL}
+      - SPARK_WORKER_WEBUI_PORT=${SPARK_WORKER_WEBUI_PORT}
+    extra_hosts:
+      - "${SPARK_MASTER_HOST}:${SPARK_MASTER_HOST}"
     dns:
       - 8.8.8.8
       - 8.8.4.4

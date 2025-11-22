@@ -33,33 +33,26 @@ Anote o IP (exemplo: `192.168.1.100`)
 
 **ATENÇÃO:** Esta é a configuração mais crítica!
 
-No arquivo `master/.env`, **SUBSTITUA** `0.0.0.0` pelo **IP REAL** da máquina Master:
+No arquivo `master/.env`, **SUBSTITUA** pelos valores reais:
 
 ```env
 SPARK_MODE=master
-SPARK_MASTER_HOST=192.168.1.100  # ← SEU IP REAL DA MÁQUINA MASTER AQUI
+SPARK_MASTER_HOST=0.0.0.0  # Sempre 0.0.0.0 para aceitar conexões
 SPARK_MASTER_PORT=7077
 SPARK_MASTER_WEBUI_PORT=8080
+SPARK_DRIVER_HOST=192.168.1.100  # ← SEU IP REAL DA MÁQUINA MASTER
+SPARK_DRIVER_PORT=35000
+SPARK_DRIVER_BLOCKMANAGER_PORT=35100
 ```
 
-No arquivo `master/spark-defaults.conf`, **SUBSTITUA** o hostname pelo **IP REAL**:
+**⚠️ IMPORTANTE:** As variáveis `SPARK_DRIVER_*` são automaticamente substituídas no `spark-defaults.conf` durante a inicialização do container.
 
-```properties
-spark.master                     spark://192.168.1.100:7077
-spark.driver.bindAddress         0.0.0.0
-spark.driver.host                192.168.1.100  # ← SEU IP REAL AQUI
-spark.driver.port                35000
-```
-
-**💡 DICA:** Use o arquivo `master/spark-defaults-multi-maquina.conf` como template!
-
-**⚠️ IMPORTANTE:** O Master e o Driver precisam anunciar o IP real para que os executores dos Workers consigam conectar de volta. Se usar `0.0.0.0` ou `spark-master`, os Workers registram mas os jobs falham!
-
-No arquivo `worker/.env`, use o **MESMO IP** do Master:
+No arquivo `worker/.env`, use o **IP REAL do Master**:
 
 ```env
 SPARK_MODE=worker
-SPARK_MASTER_URL=spark://192.168.1.100:7077  # ← MESMO IP DO MASTER
+SPARK_MASTER_URL=spark://192.168.1.100:7077  # ← IP REAL DO MASTER
+SPARK_MASTER_HOST=192.168.1.100  # ← MESMO IP
 SPARK_WORKER_WEBUI_PORT=8081
 ```
 
@@ -193,19 +186,23 @@ sudo docker network create spark-network \
 No arquivo `master/.env`:
 ```env
 SPARK_MODE=master
-SPARK_MASTER_HOST=0.0.0.0  # ← 0.0.0.0 funciona para mesma máquina
+SPARK_MASTER_HOST=0.0.0.0
 SPARK_MASTER_PORT=7077
 SPARK_MASTER_WEBUI_PORT=8080
+SPARK_DRIVER_HOST=192.168.1.7  # Use seu IP local (não afeta mesma máquina)
+SPARK_DRIVER_PORT=35000
+SPARK_DRIVER_BLOCKMANAGER_PORT=35100
 ```
 
 No arquivo `worker/.env`:
 ```env
 SPARK_MODE=worker
-SPARK_MASTER_URL=spark://spark-master:7077  # ← hostname funciona na mesma máquina
+SPARK_MASTER_URL=spark://spark-master:7077
+SPARK_MASTER_HOST=spark-master
 SPARK_WORKER_WEBUI_PORT=8081
 ```
 
-**Importante:** O arquivo `master/spark-defaults.conf` já está configurado para mesma máquina com `spark.driver.host=spark-master`.
+**Importante:** Para mesma máquina, o Worker usa o hostname `spark-master` que é resolvido automaticamente pelo Docker.
 
 #### 3. Iniciar os containers
 ```bash
