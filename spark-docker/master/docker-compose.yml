@@ -6,10 +6,10 @@ services:
     env_file:
       - .env
     ports:
-      - "7077:7077"
-      - "8080:8080"
+      - "${SPARK_MASTER_PORT}:${SPARK_MASTER_PORT}"
+      - "${SPARK_MASTER_WEBUI_PORT}:${SPARK_MASTER_WEBUI_PORT}"
       - "4040:4040"
-      - "35000-35100:35000-35100"  # Range de portas para driver e block manager
+      - "${SPARK_DRIVER_PORT}-${SPARK_DRIVER_BLOCKMANAGER_PORT}:${SPARK_DRIVER_PORT}-${SPARK_DRIVER_BLOCKMANAGER_PORT}"
     volumes:
       - ./apps:/apps
     networks:
@@ -18,9 +18,12 @@ services:
           - spark-master
     environment:
       - SPARK_MASTER_HOST=0.0.0.0
-      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_PORT=${SPARK_MASTER_PORT}
+      - SPARK_DRIVER_HOST=${SPARK_DRIVER_HOST}
+      - SPARK_DRIVER_PORT=${SPARK_DRIVER_PORT}
+      - SPARK_DRIVER_BLOCKMANAGER_PORT=${SPARK_DRIVER_BLOCKMANAGER_PORT}
     extra_hosts:
-      - "spark-master:192.168.1.7"
+      - "spark-master:${SPARK_DRIVER_HOST}"
 
 networks:
   spark-network:
