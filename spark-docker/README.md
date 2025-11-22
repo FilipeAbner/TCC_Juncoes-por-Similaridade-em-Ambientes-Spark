@@ -42,7 +42,18 @@ SPARK_MASTER_PORT=7077
 SPARK_MASTER_WEBUI_PORT=8080
 ```
 
-**⚠️ IMPORTANTE:** O Master precisa anunciar seu IP real para que os executores dos Workers consigam conectar de volta. Se usar `0.0.0.0` ou `spark-master`, os Workers registram mas os jobs falham!
+No arquivo `master/spark-defaults.conf`, **SUBSTITUA** o hostname pelo **IP REAL**:
+
+```properties
+spark.master                     spark://192.168.1.100:7077
+spark.driver.bindAddress         0.0.0.0
+spark.driver.host                192.168.1.100  # ← SEU IP REAL AQUI
+spark.driver.port                35000
+```
+
+**💡 DICA:** Use o arquivo `master/spark-defaults-multi-maquina.conf` como template!
+
+**⚠️ IMPORTANTE:** O Master e o Driver precisam anunciar o IP real para que os executores dos Workers consigam conectar de volta. Se usar `0.0.0.0` ou `spark-master`, os Workers registram mas os jobs falham!
 
 No arquivo `worker/.env`, use o **MESMO IP** do Master:
 
@@ -55,16 +66,18 @@ SPARK_WORKER_WEBUI_PORT=8081
 
 ### Passo 3: Verificar o Firewall
 
-**IMPORTANTE:** A porta 7077 precisa estar aberta no firewall do Master!
+**IMPORTANTE:** As portas precisam estar abertas no firewall do Master!
 
 ```bash
 # Ubuntu/Debian
-sudo ufw allow 7077/tcp
-sudo ufw allow 8080/tcp
+sudo ufw allow 7077/tcp    # Master RPC
+sudo ufw allow 8080/tcp    # Master UI
+sudo ufw allow 35000/tcp   # Driver (comunicação com executores)
 
 # CentOS/RHEL
 sudo firewall-cmd --permanent --add-port=7077/tcp
 sudo firewall-cmd --permanent --add-port=8080/tcp
+sudo firewall-cmd --permanent --add-port=35000/tcp
 sudo firewall-cmd --reload
 ```
 
@@ -125,7 +138,7 @@ Execute um job de teste:
 # Na máquina do Master
 sudo docker exec -it spark-master \
   /opt/spark/bin/spark-submit \
-  --master spark://192.168.1.100:7077 \
+  --master spark://192.168.1.7:7077 \
   --executor-memory 512m \
   --executor-cores 1 \
   --total-executor-cores 2 \
@@ -192,15 +205,17 @@ SPARK_MASTER_URL=spark://spark-master:7077  # ← hostname funciona na mesma má
 SPARK_WORKER_WEBUI_PORT=8081
 ```
 
+**Importante:** O arquivo `master/spark-defaults.conf` já está configurado para mesma máquina com `spark.driver.host=spark-master`.
+
 #### 3. Iniciar os containers
 ```bash
 # Master
 cd master
-sudo docker compose up --build
+sudo docker compose up --build -d
 
 # Worker (em outro terminal)
 cd worker
-sudo docker compose up --build
+sudo docker compose up --build -d
 ```
 
 

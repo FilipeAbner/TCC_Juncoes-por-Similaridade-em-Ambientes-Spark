@@ -6,9 +6,10 @@ services:
     env_file:
       - .env
     ports:
-      - "7077:7077"  # porta do master
-      - "8080:8080"  # interface web do Spark
-      - "4040:4040"  # interface web da aplicação
+      - "7077:7077"
+      - "8080:8080"
+      - "4040:4040"
+      - "35000-35100:35000-35100"  # Range de portas para driver e block manager
     volumes:
       - ./apps:/apps
     networks:
@@ -18,6 +19,8 @@ services:
     environment:
       - SPARK_MASTER_HOST=0.0.0.0
       - SPARK_MASTER_PORT=7077
+    extra_hosts:
+      - "spark-master:192.168.1.7"
 
 networks:
   spark-network:
