@@ -13,8 +13,10 @@ services:
     environment:
       - SPARK_MASTER_URL=${SPARK_MASTER_URL}
       - SPARK_WORKER_WEBUI_PORT=${SPARK_WORKER_WEBUI_PORT}
+      - SPARK_WORKER_CORES=${SPARK_WORKER_CORES:-2}
+      - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY:-2g}
     extra_hosts:
-      - "${SPARK_MASTER_HOST}:${SPARK_MASTER_HOST}"
+      - "spark-master:${SPARK_MASTER_IP}"
     dns:
       - 8.8.8.8
       - 8.8.4.4
