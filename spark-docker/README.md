@@ -85,9 +85,146 @@ Verifique se está rodando:
 - Web UI: `http://IP_DO_MASTER:8080`
 - Porta RPC: `IP_DO_MASTER:7077`
 
+### Passo 5: Configurar NFS para Compartilhamento de Arquivos (Recomendado)
+
+Se você precisa compartilhar arquivos de entrada entre Master e Workers (ex: datasets CSV, Parquet), configure NFS:
+
+#### **No Master (192.168.1.7 - Linux):**
+
+```bash
+# 1. Instalar servidor NFS
+sudo apt-get update
+sudo apt-get install -y nfs-kernel-server
+
+# 2. Criar diretório compartilhado
+sudo mkdir -p /shared/spark-data
+sudo chmod 777 /shared/spark-data
+
+# 3. Configurar exportação NFS (permitir toda a rede 192.168.1.x)
+echo "/shared/spark-data 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)" | sudo tee -a /etc/exports
+
+# 4. Aplicar configurações
+sudo exportfs -ra
+sudo systemctl restart nfs-kernel-server
+
+# 5. Verificar se está funcionando
+sudo exportfs -v
+sudo systemctl status nfs-kernel-server
+
+# 6. Liberar firewall (se ativo)
+sudo ufw allow from 192.168.1.0/24 to any port nfs
+sudo ufw allow from 192.168.1.0/24 to any port 2049
+```
+
+#### **Adicionar volume ao docker-compose do Master:**
+
+Edite `master/docker-compose.yml` e adicione o volume:
+```yaml
+volumes:
+  - ./apps:/apps
+  - /shared/spark-data:/data  # ← Volume NFS compartilhado
+```
+
+Agora você pode acessar arquivos em `/data` dentro do container Master.
+
 ---
 
 ## Configuração do Worker (Máquina 2, 3, ...)
+
+### Passo 1: Montar NFS (se configurado no Master)
+
+#### **No Worker Linux:**
+
+```bash
+# 1. Instalar cliente NFS
+sudo apt-get update
+sudo apt-get install -y nfs-common
+
+# 2. Criar diretório de montagem
+sudo mkdir -p /shared/spark-data
+
+# 3. Testar se o NFS está acessível
+showmount -e 192.168.1.7
+
+# 4. Montar o volume NFS
+sudo mount -t nfs 192.168.1.7:/shared/spark-data /shared/spark-data
+
+# 5. Verificar montagem
+df -h | grep spark-data
+
+# 6. Testar acesso
+sudo touch /shared/spark-data/teste_worker.txt
+ls -la /shared/spark-data/
+
+# 7. (Opcional) Tornar montagem permanente após reboot
+echo "192.168.1.7:/shared/spark-data /shared/spark-data nfs defaults,_netdev 0 0" | sudo tee -a /etc/fstab
+```
+
+#### **No Worker Windows com WSL:**
+
+```bash
+# 1. Instalar cliente NFS
+sudo apt-get update
+sudo apt-get install -y nfs-common
+
+# 2. Criar diretório de montagem
+sudo mkdir -p /shared/spark-data
+
+# 3. Testar se o NFS está acessível
+showmount -e 192.168.1.7
+
+# 4. Montar o volume NFS
+sudo mount -t nfs 192.168.1.7:/shared/spark-data /shared/spark-data
+
+# 5. Verificar montagem
+df -h | grep spark-data
+
+# 6. Testar acesso
+sudo touch /shared/spark-data/teste_wsl.txt
+ls -la /shared/spark-data/
+
+# 7. (Opcional) Se der erro "access denied", tente com opções adicionais:
+sudo mount -t nfs -o vers=3,proto=tcp 192.168.1.7:/shared/spark-data /shared/spark-data
+```
+
+**⚠️ Troubleshooting - Se der erro "access denied":**
+
+1. **Verificar no Master** se a configuração permite a rede:
+   ```bash
+   # No Master
+   cat /etc/exports
+   # Deve conter: /shared/spark-data 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)
+   ```
+
+2. **Recarregar configuração do NFS** no Master:
+   ```bash
+   sudo exportfs -ra
+   sudo systemctl restart nfs-kernel-server
+   ```
+
+3. **Verificar conectividade de rede**:
+   ```bash
+   # No Worker
+   ping 192.168.1.7
+   nc -zv 192.168.1.7 2049
+   ```
+
+#### **Adicionar volume ao docker-compose do Worker:**
+
+Edite `worker/docker-compose.yml` e adicione o volume:
+```yaml
+volumes:
+  - /shared/spark-data:/data  # ← Mesmo volume NFS do Master
+```
+
+Agora todos os Workers podem acessar os mesmos arquivos em `/data`.
+
+**Exemplo de uso:**
+```python
+# No código PySpark
+df = spark.read.csv("/data/vendas.csv", header=True)
+# Todos os executors conseguem acessar o arquivo!
+```
 
 ### Passo 2: Testar conectividade com o Master
 

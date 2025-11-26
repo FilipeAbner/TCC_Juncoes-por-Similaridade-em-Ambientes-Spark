@@ -6,6 +6,8 @@ services:
       - .env
     ports:
       - "${SPARK_WORKER_WEBUI_PORT}:${SPARK_WORKER_WEBUI_PORT}"
+    volumes:
+      - /shared/spark-data:/data
     networks:
       - spark-network
     environment:
