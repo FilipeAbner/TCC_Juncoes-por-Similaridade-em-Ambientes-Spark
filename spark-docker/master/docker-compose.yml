@@ -12,7 +12,9 @@ services:
       - "${SPARK_DRIVER_PORT}-${SPARK_DRIVER_BLOCKMANAGER_PORT}:${SPARK_DRIVER_PORT}-${SPARK_DRIVER_BLOCKMANAGER_PORT}"
     volumes:
       - ./apps:/apps
-      - /shared/spark-data:/data
+      - type: bind
+        source: /shared/spark-data
+        target: /data
     networks:
       spark-network:
         aliases:

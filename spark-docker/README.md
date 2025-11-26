@@ -87,51 +87,56 @@ Verifique se está rodando:
 
 ### Passo 5: Configurar NFS para Compartilhamento de Arquivos (Recomendado)
 
-Se você precisa compartilhar arquivos de entrada entre Master e Workers (ex: datasets CSV, Parquet), configure NFS:
+**IMPORTANTE:** Para que os Workers acessem os mesmos arquivos que o Master, vamos exportar o diretório `apps` via NFS.
 
-#### **No Master (192.168.1.7 - Linux):**
+#### **Método Recomendado: Exportar diretório `apps` do Master**
+
+Este método garante que Master e Workers vejam exatamente os mesmos arquivos.
 
 ```bash
-# 1. Instalar servidor NFS
+# 1. Parar Master (se estiver rodando)
+cd ~/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master
+sudo docker-compose down
+
+# 2. Instalar servidor NFS
 sudo apt-get update
 sudo apt-get install -y nfs-kernel-server
 
-# 2. Criar diretório compartilhado
-sudo mkdir -p /shared/spark-data
-sudo chmod 777 /shared/spark-data
+# 3. Obter caminho absoluto do diretório apps
+APPS_DIR=$(pwd)/apps
+echo "Exportando: $APPS_DIR"
 
-# 3. Configurar exportação NFS (permitir toda a rede 192.168.1.x)
-echo "/shared/spark-data 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)" | sudo tee -a /etc/exports
+# 4. Configurar NFS para exportar apps (substitua pelo caminho real)
+# Exemplo: /home/filipe-abner/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps
+echo "$APPS_DIR *(rw,sync,no_subtree_check,no_root_squash,insecure,all_squash,anonuid=1000,anongid=1000)" | sudo tee -a /etc/exports
 
-# 4. Aplicar configurações
+# 5. Aplicar configurações
 sudo exportfs -ra
 sudo systemctl restart nfs-kernel-server
 
-# 5. Verificar se está funcionando
-sudo exportfs -v
-sudo systemctl status nfs-kernel-server
+# 6. Verificar se está exportando
+sudo exportfs -v | grep apps
 
-# 6. Liberar firewall (se ativo)
+# 7. Liberar firewall (se ativo)
 sudo ufw allow from 192.168.1.0/24 to any port nfs
 sudo ufw allow from 192.168.1.0/24 to any port 2049
+
+# 8. Subir Master novamente
+sudo docker-compose up -d
 ```
 
-#### **Adicionar volume ao docker-compose do Master:**
-
-Edite `master/docker-compose.yml` e adicione o volume:
-```yaml
-volumes:
-  - ./apps:/apps
-  - /shared/spark-data:/data  # ← Volume NFS compartilhado
+**Verificar no Master:**
+```bash
+# Listar arquivos compartilhados
+ls -la ~/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps/
+# Deve mostrar: test_nfs_data.py, vendas_exemplo.csv, etc.
 ```
-
-Agora você pode acessar arquivos em `/data` dentro do container Master.
 
 ---
 
 ## Configuração do Worker (Máquina 2, 3, ...)
 
-### Passo 1: Montar NFS (se configurado no Master)
+### Passo 1: Montar NFS do Master
 
 #### **No Worker Linux:**
 
@@ -140,24 +145,26 @@ Agora você pode acessar arquivos em `/data` dentro do container Master.
 sudo apt-get update
 sudo apt-get install -y nfs-common
 
-# 2. Criar diretório de montagem
-sudo mkdir -p /shared/spark-data
+# 2. Criar ponto de montagem
+sudo mkdir -p /mnt/master-apps
 
-# 3. Testar se o NFS está acessível
+# 3. Testar se consegue ver o compartilhamento NFS do Master
 showmount -e 192.168.1.7
+# Deve mostrar: /home/filipe-abner/.../master/apps *
 
-# 4. Montar o volume NFS
-sudo mount -t nfs 192.168.1.7:/shared/spark-data /shared/spark-data
+# 4. Montar o diretório apps do Master
+# SUBSTITUA o caminho pelo caminho real retornado por showmount
+sudo mount -t nfs 192.168.1.7:/home/filipe-abner/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps /mnt/master-apps
 
-# 5. Verificar montagem
-df -h | grep spark-data
+# 5. Verificar se montou corretamente
+ls -la /mnt/master-apps/
+# Deve mostrar: test_nfs_data.py, vendas_exemplo.csv, etc.
 
 # 6. Testar acesso
-sudo touch /shared/spark-data/teste_worker.txt
-ls -la /shared/spark-data/
+cat /mnt/master-apps/vendas_exemplo.csv | head -5
 
 # 7. (Opcional) Tornar montagem permanente após reboot
-echo "192.168.1.7:/shared/spark-data /shared/spark-data nfs defaults,_netdev 0 0" | sudo tee -a /etc/fstab
+echo "192.168.1.7:/home/filipe-abner/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps /mnt/master-apps nfs defaults,_netdev 0 0" | sudo tee -a /etc/fstab
 ```
 
 #### **No Worker Windows com WSL:**
@@ -167,33 +174,29 @@ echo "192.168.1.7:/shared/spark-data /shared/spark-data nfs defaults,_netdev 0 0
 sudo apt-get update
 sudo apt-get install -y nfs-common
 
-# 2. Criar diretório de montagem
-sudo mkdir -p /shared/spark-data
+# 2. Criar ponto de montagem
+sudo mkdir -p /mnt/master-apps
 
 # 3. Testar se o NFS está acessível
 showmount -e 192.168.1.7
 
-# 4. Montar o volume NFS
-sudo mount -t nfs 192.168.1.7:/shared/spark-data /shared/spark-data
+# 4. Montar o diretório apps do Master (substitua pelo caminho real)
+sudo mount -t nfs 192.168.1.7:/home/filipe-abner/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps /mnt/master-apps
 
 # 5. Verificar montagem
-df -h | grep spark-data
+ls -la /mnt/master-apps/
 
-# 6. Testar acesso
-sudo touch /shared/spark-data/teste_wsl.txt
-ls -la /shared/spark-data/
-
-# 7. (Opcional) Se der erro "access denied", tente com opções adicionais:
-sudo mount -t nfs -o vers=3,proto=tcp 192.168.1.7:/shared/spark-data /shared/spark-data
+# 6. Se der erro "access denied", tente com opções adicionais:
+sudo mount -t nfs -o vers=3,proto=tcp 192.168.1.7:/home/filipe-abner/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps /mnt/master-apps
 ```
 
 **⚠️ Troubleshooting - Se der erro "access denied":**
 
-1. **Verificar no Master** se a configuração permite a rede:
+1. **Verificar no Master** se o diretório apps está sendo exportado:
    ```bash
    # No Master
-   cat /etc/exports
-   # Deve conter: /shared/spark-data 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)
+   sudo exportfs -v | grep apps
+   # Deve mostrar o caminho completo do diretório apps
    ```
 
 2. **Recarregar configuração do NFS** no Master:
@@ -213,6 +216,11 @@ sudo mount -t nfs -o vers=3,proto=tcp 192.168.1.7:/shared/spark-data /shared/spa
 
 Edite `worker/docker-compose.yml` e adicione o volume:
 ```yaml
+volumes:
+  - /mnt/master-apps:/apps  # ← Monta o diretório apps do Master
+```
+
+Agora Master e Workers compartilham o mesmo diretório `/apps` com todos os arquivos!
 volumes:
   - /shared/spark-data:/data  # ← Mesmo volume NFS do Master
 ```
@@ -261,13 +269,51 @@ INFO Worker: Successfully registered with master spark://192.168.1.100:7077
 
 Verifique também na Web UI do Master (`http://IP_DO_MASTER:8080`), o worker deve aparecer na lista.
 
-### Passo 5: Testar com um job
+### Passo 5: Testar com dados compartilhados via NFS
 
-Execute um job de teste:
+Execute o teste de leitura de dados compartilhados:
+
 ```bash
 # Na máquina do Master
 sudo docker exec -it spark-master \
-  /opt/spark/bin/spark-submit \
+  spark-submit \
+  --master spark://192.168.1.7:7077 \
+  --executor-memory 512m \
+  --executor-cores 1 \
+  --total-executor-cores 2 \
+  /apps/test_nfs_data.py
+```
+
+**Resultado esperado:**
+```
+======================================================================
+TESTE: Leitura de Dados do NFS Compartilhado
+======================================================================
+
+✓ Arquivo lido com sucesso!
+✓ Total de registros: 60
+✓ Análises estatísticas executadas
+✓ Resultado salvo em: /apps/resultado_analise_vendas
+✅ TESTE CONCLUÍDO COM SUCESSO!
+```
+
+**Verificar resultado:**
+```bash
+# Verificar arquivos gerados
+ls -la ~/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps/resultado_analise_vendas/
+
+# Deve mostrar:
+# _SUCCESS
+# part-xxxxx.snappy.parquet
+```
+
+### Passo 6: Teste básico de conectividade
+
+Execute um teste simples sem dados externos:
+```bash
+# Na máquina do Master
+sudo docker exec -it spark-master \
+  spark-submit \
   --master spark://192.168.1.7:7077 \
   --executor-memory 512m \
   --executor-cores 1 \
@@ -276,6 +322,15 @@ sudo docker exec -it spark-master \
 ```
 
 **⚠️ ATENÇÃO:** Use o IP real do Master no `--master`, não o hostname `spark-master`!
+
+**✅ Validação do Compartilhamento NFS:**
+
+Este teste comprova que:
+- ✅ Master e Workers acessam o mesmo diretório `/apps`
+- ✅ Arquivos são compartilhados via NFS
+- ✅ Executors conseguem ler e processar dados compartilhados
+- ✅ Resultados são salvos no diretório compartilhado
+- ✅ Processamento distribuído funciona corretamente
 
 Se os executores não conectarem, verifique:
 1. `SPARK_MASTER_HOST` no Master está com o IP real (não `0.0.0.0`)

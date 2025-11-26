@@ -7,7 +7,7 @@ services:
     ports:
       - "${SPARK_WORKER_WEBUI_PORT}:${SPARK_WORKER_WEBUI_PORT}"
     volumes:
-      - /shared/spark-data:/data
+      - /mnt/master-apps:/apps
     networks:
       - spark-network
     environment:
