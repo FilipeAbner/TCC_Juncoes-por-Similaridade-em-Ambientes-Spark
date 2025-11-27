@@ -76,4 +76,4 @@ Thumbs.db
 
 # Outros
 DEPLOY_MULTI_MAQUINA.md
-spark-docker/master/apps/BRIDkD-master/*
+spark-docker/master/apps/BRIDkD-master/
