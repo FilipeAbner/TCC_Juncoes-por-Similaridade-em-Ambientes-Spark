@@ -2,6 +2,8 @@ services:
   spark-master:
     build: ./master
     container_name: spark-master
+    environment:
+      - PYTHONPATH=/apps
     env_file:
       - ./master/.env
     ports:
@@ -13,6 +15,8 @@ services:
   spark-worker:
     build: ./worker
     container_name: spark-worker
+    environment:
+      - PYTHONPATH=/apps
     env_file:
       - ./worker/.env
     ports:

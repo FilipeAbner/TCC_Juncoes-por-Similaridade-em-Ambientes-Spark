@@ -8,6 +8,7 @@ ENV PYSPARK_VERSION=4.0.1 \
     SPARK_DOWNLOAD_URL=https://dlcdn.apache.org/spark/spark-4.0.1/spark-4.0.1-bin-hadoop3.tgz \
     SPARK_HOME=/opt/spark \
     PATH=/opt/spark/bin:/opt/spark/sbin:$PATH \
+    PYTHONPATH=/apps:$PYTHONPATH \
     PYSPARK_PYTHON=/usr/local/bin/python3 \
     PYSPARK_DRIVER_PYTHON=/usr/local/bin/python3
 
