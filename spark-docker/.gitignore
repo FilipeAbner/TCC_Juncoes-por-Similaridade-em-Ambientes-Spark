@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Spark
+metastore_db/
+derby.log
+spark-warehouse/
+
+# Arquivos temporários do BRIDk
+spark-docker/master/apps/brid_dataset_temp.txt
+spark-docker/master/apps/brid_dataset_clustered_temp.txt
+spark-docker/master/apps/brid_dataset_visual.txt
+spark-docker/master/apps/brid_resultado_*.png
+spark-docker/master/apps/*.zip
+spark-docker/master/apps/brid_python.zip
+
+# Backups
+*_backup.py
+*.bak
+
+# Logs
+*.log
+logs/
+spark-docker/master/logs/
+spark-docker/worker/logs/
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Dados temporários
+*.txt.tmp
+*.csv.tmp
+
+# Outros
+DEPLOY_MULTI_MAQUINA.md
+spark-docker/master/apps/BRIDkD-master/*
