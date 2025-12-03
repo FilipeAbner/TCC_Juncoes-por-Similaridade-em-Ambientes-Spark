@@ -7,6 +7,7 @@ Gera gráficos 2D e 3D mostrando:
 - Pontos selecionados (verde)
 """
 
+import os
 from pyspark.sql import SparkSession
 from brid_python.spark.brid_spark import BridSpark
 from brid_python.types.tuple import Tuple
@@ -20,9 +21,19 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
 
-def visualizar_resultados_3d(dataset, query, results, output_file="/apps/brid_resultado_3d.png"):
+def criar_diretorio_resultado():
+    """Cria o diretório de resultados se não existir."""
+    result_dir = "/apps/result"
+    os.makedirs(result_dir, exist_ok=True)
+    return result_dir
+
+
+def visualizar_resultados_3d(dataset, query, results, output_file="/apps/result/brid_visual_test_resultado_3d.png"):
     """Gera visualização 3D dos resultados do BRIDk."""
-    print(f"\n📊 Gerando visualização 3D: {output_file}")
+    # Garantir que o diretório existe
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    
+    print(f"\nGerando visualização 3D: {output_file}")
     
     # Extrair coordenadas
     dataset_coords = np.array([t.getAttributes() for t in dataset])
@@ -38,12 +49,12 @@ def visualizar_resultados_3d(dataset, query, results, output_file="/apps/brid_re
     fig = plt.figure(figsize=(14, 10))
     ax = fig.add_subplot(111, projection='3d')
     
-    # Plotar pontos não selecionados (cinza)
+    # Plotar pontos não selecionados (preto)
     if len(not_selected_coords) > 0:
         ax.scatter(not_selected_coords[:, 0], 
                    not_selected_coords[:, 1], 
                    not_selected_coords[:, 2],
-                   c='lightgray', marker='o', s=40, alpha=0.5, label='Dataset')
+                   c='black', marker='o', s=40, alpha=0.7, label='Dataset')
     
     # Plotar pontos selecionados (verde)
     if len(results_coords) > 0:
@@ -88,12 +99,15 @@ def visualizar_resultados_3d(dataset, query, results, output_file="/apps/brid_re
     plt.savefig(output_file, dpi=200, bbox_inches='tight', facecolor='white')
     plt.close()
     
-    print(f"   ✓ Gráfico 3D salvo: {output_file}")
+    print(f"   Gráfico 3D salvo: {output_file}")
 
 
-def visualizar_resultados_2d(dataset, query, results, output_file="/apps/brid_resultado_2d.png"):
+def visualizar_resultados_2d(dataset, query, results, output_file="/apps/result/brid_visual_test_resultado_2d.png"):
     """Gera visualização 2D (projeção XY) dos resultados do BRIDk."""
-    print(f"\n📊 Gerando visualização 2D: {output_file}")
+    # Garantir que o diretório existe
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    
+    print(f"\nGerando visualização 2D: {output_file}")
     
     # Extrair coordenadas (apenas X e Y)
     dataset_coords = np.array([t.getAttributes()[:2] for t in dataset])
@@ -111,7 +125,7 @@ def visualizar_resultados_2d(dataset, query, results, output_file="/apps/brid_re
     # Plotar pontos não selecionados
     if len(not_selected_coords) > 0:
         ax.scatter(not_selected_coords[:, 0], not_selected_coords[:, 1],
-                   c='lightgray', marker='o', s=40, alpha=0.5, label='Dataset')
+                   c='black', marker='o', s=40, alpha=0.7, label='Dataset')
     
     # Plotar pontos selecionados
     if len(results_coords) > 0:
@@ -122,7 +136,7 @@ def visualizar_resultados_2d(dataset, query, results, output_file="/apps/brid_re
         # Adicionar labels dos IDs
         for result in results:
             coords = result.getAttributes()[:2]
-            ax.annotate(f" {result.getId()}", xy=(coords[0], coords[1]), 
+            ax.annotate(f" {result.getDescription()}", xy=(coords[0], coords[1]), 
                        fontsize=9, color='darkgreen', fontweight='bold',
                        xytext=(5, 5), textcoords='offset points')
     
@@ -155,7 +169,7 @@ def visualizar_resultados_2d(dataset, query, results, output_file="/apps/brid_re
     plt.savefig(output_file, dpi=200, bbox_inches='tight', facecolor='white')
     plt.close()
     
-    print(f"   ✓ Gráfico 2D salvo: {output_file}")
+    print(f"   Gráfico 2D salvo: {output_file}")
 
 
 def exemplo_com_visualizacao():
@@ -163,6 +177,10 @@ def exemplo_com_visualizacao():
     print("="*80)
     print("BRIDk DISTRIBUÍDO COM PYSPARK + VISUALIZAÇÃO GRÁFICA")
     print("="*80)
+    
+    # Criar diretório de resultados
+    result_dir = criar_diretorio_resultado()
+    print(f"\nDiretório de resultados: {result_dir}")
     
     # Criar SparkSession
     spark = SparkSession.builder \
@@ -179,7 +197,7 @@ def exemplo_com_visualizacao():
         pontos = [
             (0, 0.0, 0.0, "Sq"),
             (1, 3.0, 0.0, "A"),
-            (2, 3.0, 2.0, "B"),
+            (2, 3.0, 3.00000000001, "B"),
             (3, 5.0, -3.0, "C"),
             (4, 4.0, -5.0, "D")
         ]
@@ -194,12 +212,16 @@ def exemplo_com_visualizacao():
             tupla.setDescription(nome)
             dataset_tuples.append(tupla)
         
+        # Criar diretório para datasets se não existir
+        dataset_dir = "/apps/datasets/tests"
+        os.makedirs(dataset_dir, exist_ok=True)
+        
         # Salvar dataset
-        dataset_path = "/apps/datasets/tests/brid_dataset_visual.txt"
+        dataset_path = f"{dataset_dir}/brid_dataset_visual.txt"
         with open(dataset_path, 'w') as f:
             f.write('\n'.join(data))
         
-        print(f"   ✓ Dataset criado: {len(pontos)} tuplas")
+        print(f"   Dataset criado: {len(pontos)} tuplas")
         print(f"      Sq=(0,0), A=(3,0), B=(3,2), C=(5,-3), D=(4,-5)")
         
         # Definir query (Sq = ponto 0)
@@ -229,34 +251,35 @@ def exemplo_com_visualizacao():
         print("   " + "="*60)
         for i, tupla in enumerate(results, 1):
             coords = tupla.getAttributes()
-            print(f"   {i}. {tupla.getDescription()} = ({coords[0]:.1f}, {coords[1]:.1f})")
+            desc = tupla.getDescription() or f"Tupla_{tupla.getId()}"
+            print(f"   {i}. {desc} = ({coords[0]:.1f}, {coords[1]:.1f})")
         print("   " + "="*60)
         
-        # Gerar visualização 2D (apenas 2D pois os pontos são planares)
+        # Gerar visualização 2D no diretório result
         print("\n5. Gerando visualização gráfica...")
-        visualizar_resultados_2d(dataset_tuples, query, results,
-                                "/apps/brid_resultado_2d.png")
+        output_path = f"{result_dir}/brid_visual_test_resultado_2d.png"
+        visualizar_resultados_2d(dataset_tuples, query, results, output_path)
         
         print("\n" + "="*80)
-        print("✓ EXECUÇÃO CONCLUÍDA COM SUCESSO!")
+        print("EXECUÇÃO CONCLUÍDA COM SUCESSO!")
         print("="*80)
-        print("\n📁 Arquivo gerado:")
-        print("   • /apps/brid_resultado_2d.png  - Visualização 2D")
-        print("\n💡 Dica: Copie o arquivo PNG para visualizar:")
-        print("   docker cp spark-master:/apps/brid_resultado_2d.png .")
+        print(f"\nArquivo gerado:")
+        print(f"   • {output_path}")
+        print(f"\nDica: Copie o arquivo PNG para visualizar:")
+        print(f"   docker cp spark-master:{output_path} .")
         
     finally:
         spark.stop()
 
 
 if __name__ == "__main__":
-    print("\n" + "🎨 "*35)
+    print("\n" + "="*70)
     print("BRIDk COM VISUALIZAÇÃO GRÁFICA")
-    print("🎨 "*35 + "\n")
+    print("="*70 + "\n")
     
     try:
         exemplo_com_visualizacao()
     except Exception as e:
-        print(f"\n❌ Erro: {e}")
+        print(f"\nErro: {e}")
         import traceback
         traceback.print_exc()
