@@ -25,7 +25,7 @@ def test_nfs_read():
         # Por enquanto, usando /apps que já está mapeado
         nfs_path = "/apps/vendas_exemplo.csv"
         
-        print(f"\n📖 Lendo arquivo: {nfs_path}")
+        print(f"\nLendo arquivo: {nfs_path}")
         print("-" * 70)
         
         # Ler arquivo CSV do NFS
@@ -38,27 +38,27 @@ def test_nfs_read():
         
         # Informações básicas
         total_registros = df.count()
-        print(f"\n✓ Arquivo lido com sucesso!")
-        print(f"✓ Total de registros: {total_registros:,}")
-        print(f"✓ Número de colunas: {len(df.columns)}")
-        print(f"✓ Colunas: {', '.join(df.columns)}")
+        print(f"\nArquivo lido com sucesso!")
+        print(f"Total de registros: {total_registros:,}")
+        print(f"Número de colunas: {len(df.columns)}")
+        print(f"Colunas: {', '.join(df.columns)}")
         
         # Mostrar schema
-        print("\n📋 Schema do DataFrame:")
+        print("\nSchema do DataFrame:")
         print("-" * 70)
         df.printSchema()
         
         # Mostrar primeiras linhas
-        print("\n📊 Primeiras 10 linhas:")
+        print("\nPrimeiras 10 linhas:")
         print("-" * 70)
         df.show(10, truncate=False)
         
         # Análises estatísticas
-        print("\n📈 Análises Estatísticas:")
+        print("\nAnálises Estatísticas:")
         print("-" * 70)
         
         # 1. Total de vendas por categoria
-        print("\n1️⃣  Total de Vendas por Categoria:")
+        print("\n1. Total de Vendas por Categoria:")
         vendas_categoria = df.groupBy("categoria") \
             .agg(
                 count("*").alias("quantidade"),
@@ -70,7 +70,7 @@ def test_nfs_read():
         vendas_categoria.show(truncate=False)
         
         # 2. Vendas por região
-        print("\n2️⃣  Total de Vendas por Região:")
+        print("\n2. Total de Vendas por Região:")
         vendas_regiao = df.groupBy("regiao") \
             .agg(
                 count("*").alias("quantidade"),
@@ -82,7 +82,7 @@ def test_nfs_read():
         vendas_regiao.show(truncate=False)
         
         # 3. Top 10 produtos mais vendidos
-        print("\n3️⃣  Top 10 Produtos Mais Vendidos:")
+        print("\n3. Top 10 Produtos Mais Vendidos:")
         top_produtos = df.groupBy("produto") \
             .agg(
                 count("*").alias("quantidade_vendas"),
@@ -95,7 +95,7 @@ def test_nfs_read():
         top_produtos.show(truncate=False)
         
         # 4. Estatísticas de valores
-        print("\n4️⃣  Estatísticas de Valores:")
+        print("\n4. Estatísticas de Valores:")
         stats = df.select(
             spark_sum("valor").alias("total_geral"),
             avg("valor").alias("valor_medio"),
@@ -105,7 +105,7 @@ def test_nfs_read():
         stats.show(truncate=False)
         
         # 5. Distribuição por mês
-        print("\n5️⃣  Vendas por Mês:")
+        print("\n5. Vendas por Mês:")
         vendas_mes = df.groupBy("mes") \
             .agg(
                 count("*").alias("quantidade"),
@@ -117,7 +117,7 @@ def test_nfs_read():
         
         # Salvar resultado processado
         output_path = "/apps/resultado_analise_vendas"
-        print(f"\n💾 Salvando resultado da análise em: {output_path}")
+        print(f"\nSalvando resultado da análise em: {output_path}")
         
         # Consolidar análise em um único DataFrame
         resultado_final = df.groupBy("categoria", "regiao") \
@@ -129,12 +129,12 @@ def test_nfs_read():
             .orderBy("categoria", "regiao")
         
         resultado_final.write.mode("overwrite").parquet(output_path)
-        print("✓ Resultado salvo com sucesso!")
+        print("Resultado salvo com sucesso!")
         
         print("\n" + "=" * 70)
-        print("✅ TESTE CONCLUÍDO COM SUCESSO!")
+        print("TESTE CONCLUÍDO COM SUCESSO!")
         print("=" * 70)
-        print("\n📌 Resumo:")
+        print("\nResumo:")
         print(f"   • Arquivo lido: {nfs_path}")
         print(f"   • Total de registros: {total_registros:,}")
         print(f"   • Resultado salvo em: {output_path}")
@@ -142,9 +142,9 @@ def test_nfs_read():
         print("=" * 70 + "\n")
         
     except Exception as e:
-        print(f"\n❌ ERRO ao processar arquivo:")
+        print(f"\nERRO ao processar arquivo:")
         print(f"   {str(e)}")
-        print("\n⚠️  Verifique se:")
+        print("\nVerifique se:")
         print("   1. O arquivo existe em /apps/vendas_exemplo.csv")
         print("   2. O volume ./apps:/apps está configurado no docker-compose")
         print("   3. As permissões do arquivo estão corretas")

@@ -25,7 +25,7 @@ def main():
     
     # Detectar Master URL
     master_url = os.getenv('SPARK_MASTER_URL', 'spark://spark-master:7077')
-    print(f"🔗 Conectando ao Master: {master_url}\n")
+    print(f"Conectando ao Master: {master_url}\n")
     
     # Criar SparkSession
     spark = SparkSession.builder \
@@ -36,10 +36,10 @@ def main():
         .config("spark.sql.shuffle.partitions", "4") \
         .getOrCreate()
     
-    print(f"✓ SparkSession criada com sucesso!")
-    print(f"✓ Master: {spark.sparkContext.master}")
-    print(f"✓ App Name: {spark.sparkContext.appName}")
-    print(f"✓ Spark Version: {spark.version}\n")
+    print(f"SparkSession criada com sucesso!")
+    print(f"Master: {spark.sparkContext.master}")
+    print(f"App Name: {spark.sparkContext.appName}")
+    print(f"Spark Version: {spark.version}\n")
     
     # Teste 1: RDD básico
     print_header("TESTE 1: Criando RDD e contando elementos")
@@ -49,8 +49,8 @@ def main():
     count = rdd.count()
     soma = rdd.sum()
     
-    print(f"✓ RDD criado com {count} elementos")
-    print(f"✓ Soma dos elementos: {soma}")
+    print(f"RDD criado com {count} elementos")
+    print(f"Soma dos elementos: {soma}")
     
     # Teste 2: Criar DataFrame
     print_section("TESTE 2: Criando DataFrame e realizando operações")
@@ -65,11 +65,11 @@ def main():
     
     df = spark.createDataFrame(data_df, ["nome", "idade", "profissao"])
     
-    print(f"✓ DataFrame criado com {df.count()} registros")
-    print("\n📊 Primeiras linhas do DataFrame:")
+    print(f"DataFrame criado com {df.count()} registros")
+    print("\nPrimeiras linhas do DataFrame:")
     df.show()
     
-    print("\n📊 Schema do DataFrame:")
+    print("\nSchema do DataFrame:")
     df.printSchema()
     
     # Teste 3: Transformações e ações
@@ -77,7 +77,7 @@ def main():
     
     # Filtrar pessoas com mais de 30 anos
     df_filtrado = df.filter(df.idade > 30)
-    print(f"\n✓ Pessoas com mais de 30 anos:")
+    print(f"\nPessoas com mais de 30 anos:")
     df_filtrado.show()
     
     # Calcular média de idade
@@ -90,7 +90,7 @@ def main():
         count("nome").alias("total_pessoas")
     )
     
-    print("\n📊 Estatísticas:")
+    print("\nEstatísticas:")
     stats.show()
     
     # Teste 4: Contagem de palavras (clássico MapReduce)
@@ -114,7 +114,7 @@ def main():
         .reduceByKey(lambda a, b: a + b) \
         .sortBy(lambda x: x[1], ascending=False)
     
-    print("\n📊 Top 10 palavras mais frequentes:")
+    print("\nTop 10 palavras mais frequentes:")
     for palavra, count in word_counts.take(10):
         print(f"   {palavra}: {count}")
     
@@ -135,28 +135,28 @@ def main():
     total_pares = pares.count()
     soma_pares = pares.sum()
     
-    print(f"✓ Total de quadrados pares: {total_pares}")
-    print(f"✓ Soma dos quadrados pares: {soma_pares}")
-    print(f"✓ Número de partições: {pares.getNumPartitions()}")
+    print(f"Total de quadrados pares: {total_pares}")
+    print(f"Soma dos quadrados pares: {soma_pares}")
+    print(f"Número de partições: {pares.getNumPartitions()}")
     
     # Informações finais
     print("\n" + "=" * 60)
-    print("✅ TODOS OS TESTES CONCLUÍDOS COM SUCESSO!")
+    print("TODOS OS TESTES CONCLUÍDOS COM SUCESSO!")
     print("=" * 60)
-    print(f"\n📝 Informações do Cluster:")
+    print(f"\nInformações do Cluster:")
     print(f"   - Master: {spark.sparkContext.master}")
     print(f"   - Default Parallelism: {spark.sparkContext.defaultParallelism}")
     
     # Encerrar sessão
     spark.stop()
-    print("\n✓ SparkSession encerrada")
+    print("\nSparkSession encerrada")
     print_header("FIM DOS TESTES")
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"\n❌ ERRO: {str(e)}")
+        print(f"\nERRO: {str(e)}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

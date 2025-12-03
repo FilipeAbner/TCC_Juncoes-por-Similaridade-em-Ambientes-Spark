@@ -24,8 +24,8 @@ def test_dataframe_operations():
         .config("spark.executor.cores", "2") \
         .getOrCreate()
     
-    print(f"\n✓ Conectado ao cluster Spark")
-    print(f"✓ Versão: {spark.version}")
+    print(f"\nConectado ao cluster Spark")
+    print(f"Versão: {spark.version}")
     
     # Definir schema dos dados
     schema = StructType([
@@ -60,13 +60,13 @@ def test_dataframe_operations():
     df_vendas = spark.createDataFrame(dados_vendas, schema)
     
     print("\n" + "-" * 70)
-    print("📊 DADOS ORIGINAIS")
+    print("DADOS ORIGINAIS")
     print("-" * 70)
     df_vendas.show()
     
     # Análise 1: Calcular valor total de cada venda
     print("\n" + "-" * 70)
-    print("📊 ANÁLISE 1: Valor Total por Venda")
+    print("ANÁLISE 1: Valor Total por Venda")
     print("-" * 70)
     
     df_com_total = df_vendas.withColumn(
@@ -77,7 +77,7 @@ def test_dataframe_operations():
     
     # Análise 2: Vendas por Categoria
     print("\n" + "-" * 70)
-    print("📊 ANÁLISE 2: Resumo por Categoria")
+    print("ANÁLISE 2: Resumo por Categoria")
     print("-" * 70)
     
     vendas_por_categoria = df_com_total.groupBy("categoria").agg(
@@ -91,7 +91,7 @@ def test_dataframe_operations():
     
     # Análise 3: Vendas por Região
     print("\n" + "-" * 70)
-    print("📊 ANÁLISE 3: Resumo por Região")
+    print("ANÁLISE 3: Resumo por Região")
     print("-" * 70)
     
     vendas_por_regiao = df_com_total.groupBy("regiao").agg(
@@ -104,7 +104,7 @@ def test_dataframe_operations():
     
     # Análise 4: Top 5 Produtos
     print("\n" + "-" * 70)
-    print("📊 ANÁLISE 4: Top 5 Produtos Mais Vendidos (em valor)")
+    print("ANÁLISE 4: Top 5 Produtos Mais Vendidos (em valor)")
     print("-" * 70)
     
     top_produtos = df_com_total.groupBy("produto").agg(
@@ -116,7 +116,7 @@ def test_dataframe_operations():
     
     # Análise 5: Classificação de vendas
     print("\n" + "-" * 70)
-    print("📊 ANÁLISE 5: Classificação de Vendas (Alto/Médio/Baixo Valor)")
+    print("ANÁLISE 5: Classificação de Vendas (Alto/Médio/Baixo Valor)")
     print("-" * 70)
     
     df_classificado = df_com_total.withColumn(
@@ -130,7 +130,7 @@ def test_dataframe_operations():
     
     # Análise 6: Estatísticas Gerais
     print("\n" + "-" * 70)
-    print("📊 ANÁLISE 6: Estatísticas Gerais")
+    print("ANÁLISE 6: Estatísticas Gerais")
     print("-" * 70)
     
     from pyspark.sql.functions import max as spark_max, min as spark_min
@@ -147,7 +147,7 @@ def test_dataframe_operations():
     
     # Análise 7: Join - Criar tabela de metas e comparar
     print("\n" + "-" * 70)
-    print("📊 ANÁLISE 7: Comparação com Metas por Região")
+    print("ANÁLISE 7: Comparação com Metas por Região")
     print("-" * 70)
     
     # Criar DataFrame de metas
@@ -167,20 +167,20 @@ def test_dataframe_operations():
         (col("faturamento_total") / col("meta") * 100).cast("decimal(10,2)")
     ).withColumn(
         "status",
-        when(col("percentual_atingido") >= 100, "✓ Meta Atingida")
-        .otherwise("✗ Abaixo da Meta")
+        when(col("percentual_atingido") >= 100, "Meta Atingida")
+        .otherwise("Abaixo da Meta")
     )
     
     resultado_vs_meta.select("regiao", "faturamento_total", "meta", "percentual_atingido", "status").show()
     
     # Resumo Final
     print("\n" + "=" * 70)
-    print("✅ ANÁLISE CONCLUÍDA COM SUCESSO!")
+    print("ANÁLISE CONCLUÍDA COM SUCESSO!")
     print("=" * 70)
     
     # Obter totalizadores
     total_row = stats.collect()[0]
-    print(f"\n📈 RESUMO EXECUTIVO:")
+    print(f"\nRESUMO EXECUTIVO:")
     print(f"   • Faturamento Total: R$ {total_row['faturamento_total']:,.2f}")
     print(f"   • Ticket Médio: R$ {total_row['ticket_medio']:,.2f}")
     print(f"   • Maior Venda: R$ {total_row['maior_venda']:,.2f}")
@@ -189,14 +189,14 @@ def test_dataframe_operations():
     
     # Encerrar
     spark.stop()
-    print("\n✓ SparkSession encerrada")
+    print("\nSparkSession encerrada")
     print("\n" + "=" * 70 + "\n")
 
 if __name__ == "__main__":
     try:
         test_dataframe_operations()
     except Exception as e:
-        print(f"\n❌ ERRO: {str(e)}")
+        print(f"\nERRO: {str(e)}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
