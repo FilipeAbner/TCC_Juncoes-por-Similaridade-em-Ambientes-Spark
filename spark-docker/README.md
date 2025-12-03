@@ -136,8 +136,6 @@ ls -la ~/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/app
 
 ## Configuração do Worker (Máquina 2, 3, ...)
 
-### Passo 1: Montar NFS do Master
-
 #### **No Worker Linux:**
 
 ```bash
