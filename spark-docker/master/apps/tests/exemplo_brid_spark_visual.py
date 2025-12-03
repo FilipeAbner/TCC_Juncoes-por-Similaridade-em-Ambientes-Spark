@@ -180,7 +180,6 @@ def exemplo_com_visualizacao():
     
     # Criar diretório de resultados
     result_dir = criar_diretorio_resultado()
-    print(f"\nDiretório de resultados: {result_dir}")
     
     # Criar SparkSession
     spark = SparkSession.builder \
@@ -193,7 +192,6 @@ def exemplo_com_visualizacao():
         data = []
         dataset_tuples = []
         
-        # Dataset: Sq=(0,0), A=(3,0), B=(3,2), C=(5,-3), D=(4,-5)
         pontos = [
             (0, 0.0, 0.0, "Sq"),
             (1, 3.0, 0.0, "A"),
@@ -222,7 +220,6 @@ def exemplo_com_visualizacao():
             f.write('\n'.join(data))
         
         print(f"   Dataset criado: {len(pontos)} tuplas")
-        print(f"      Sq=(0,0), A=(3,0), B=(3,2), C=(5,-3), D=(4,-5)")
         
         # Definir query (Sq = ponto 0)
         print("\n2. Definindo query no ponto Sq=(0, 0)...")
@@ -265,8 +262,6 @@ def exemplo_com_visualizacao():
         print("="*80)
         print(f"\nArquivo gerado:")
         print(f"   • {output_path}")
-        print(f"\nDica: Copie o arquivo PNG para visualizar:")
-        print(f"   docker cp spark-master:{output_path} .")
         
     finally:
         spark.stop()
