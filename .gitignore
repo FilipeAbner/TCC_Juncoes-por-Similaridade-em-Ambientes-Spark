@@ -77,3 +77,5 @@ Thumbs.db
 # Outros
 DEPLOY_MULTI_MAQUINA.md
 spark-docker/master/apps/BRIDkD-master/
+result/
+Adding result diversification to kNN-based joinsin a Map-Reduce framework.pdf
