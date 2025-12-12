@@ -79,3 +79,7 @@ DEPLOY_MULTI_MAQUINA.md
 spark-docker/master/apps/BRIDkD-master/
 result/
 Adding result diversification to kNN-based joinsin a Map-Reduce framework.pdf
+
+# DataSets muito grandes para o GitHub
+spark-docker/master/apps/Datasets/Reais
+spark-docker/master/apps/Datasets/Sintético 
