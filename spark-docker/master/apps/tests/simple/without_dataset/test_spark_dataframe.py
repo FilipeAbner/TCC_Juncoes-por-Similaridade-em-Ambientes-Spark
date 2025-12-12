@@ -8,6 +8,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, sum as spark_sum, avg, count, when, lit
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType
 import sys
+import os
 
 def test_dataframe_operations():
     """Teste avançado com operações de DataFrame"""
@@ -15,17 +16,16 @@ def test_dataframe_operations():
     print("=" * 70)
     print("TESTE AVANÇADO - ANÁLISE DE DADOS DE VENDAS")
     print("=" * 70)
-    
+
     # Criar SparkSession
     spark = SparkSession.builder \
         .appName("Analise de Vendas") \
-        .master("spark://192.168.1.7:7077") \
-        .config("spark.executor.memory", "1g") \
-        .config("spark.executor.cores", "2") \
         .getOrCreate()
     
-    print(f"\nConectado ao cluster Spark")
-    print(f"Versão: {spark.version}")
+    print(f"SparkSession criada com sucesso!")
+    print(f"Master: {spark.sparkContext.master}")
+    print(f"App Name: {spark.sparkContext.appName}")
+    print(f"Spark Version: {spark.version}\n")
     
     # Definir schema dos dados
     schema = StructType([

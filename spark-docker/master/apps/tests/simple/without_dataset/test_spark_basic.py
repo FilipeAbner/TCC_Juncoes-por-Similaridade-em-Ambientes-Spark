@@ -23,17 +23,9 @@ def print_section(text):
 def main():
     print_header("INICIANDO TESTE BÁSICO DO PYSPARK")
     
-    # Detectar Master URL
-    master_url = os.getenv('SPARK_MASTER_URL', 'spark://spark-master:7077')
-    print(f"Conectando ao Master: {master_url}\n")
-    
     # Criar SparkSession
     spark = SparkSession.builder \
         .appName("Teste Basico PySpark") \
-        .master(master_url) \
-        .config("spark.executor.memory", "512m") \
-        .config("spark.executor.cores", "1") \
-        .config("spark.sql.shuffle.partitions", "4") \
         .getOrCreate()
     
     print(f"SparkSession criada com sucesso!")
