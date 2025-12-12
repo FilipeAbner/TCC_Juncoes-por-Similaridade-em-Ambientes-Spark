@@ -1,0 +1,32 @@
+
+
+Conjuntos de Dados 
+Divididos em Reais ou gerados sinteticamente:
+
+Dados Reais: 
+ Aloi: Conjunto de características de imagens de objetos rotacionados. 
+ Autos: Conjunto de características de carros extraídos da revista 4rodas
+ SISAP: Conjuntos utilizados nos arquivos da conferência SISAP
+ COlors: Conjunto que combina cardinalidade e dimensionalidade mais elevada (que o básico)
+ Faces: Conjunto de características extraídas de fotos de face (conjunto de alta dimensão)
+ Nasa: Conjunto de características extraídas de fotos de satelite 
+ US Cities: Dados de latitude e longitude das cidades americanas 
+Dados sintéticos: (Não achei o código original que usei)
+ Cluster2D: dados em duas dimensões gerados com aglomerações em três clusters no espaço
+ Sint2D: Dados em duas dimensões, mas não lembro qual foi a ideia dele..rs!(acho que pode ignorá-lo)
+ Sint2D-Gaussiana: Dados em duas dimensões numa distribuição gaussiana.
+ Sint2D-Uniforme: dados em duas dimensões numa distribuição uniforme. 
+Simples: 
+ Conjunto simples de pontos em 2D para testes iniciais com referencia visual.
+
+Significado dos Hearders de arquivo:
+
+as 6 primeiras linhas indicam
+1046  -> quantidade de tuplas
+1 -> se o objeto tem ID (ou seja, a primeira coluna não é característica)
+9 -> número de dimensões
+1 -> Se o objeto tem alguma informação ao final, i.e., texto (ou seja, a última coluna não é característica)
+2048   -> Era o tamanho do bloco usado na estrutura de arquivo, se não tiver implementado blocagem pode excluir a linha. 
+autos  -> nome do dataset, caso tenha algum código na main que referencie arquivo (pode ser retirado também se não foi implementado). 
+
+Logicamente, para realizar os experimentos você deve criar conjuntos de consulta com k elementos (10 ou 100)  escolhidos aleatoriamente do dataset.
