@@ -44,26 +44,72 @@ class Brid(Generic[T]):
             self.metric = dataset_or_metric  # type: ignore
             self.dataset = []
     
-    def search(self, query: T, k: int) -> List[T]:
+    def search(self, query: T, k: int, return_debug: bool = False) -> List[T]:
         """
         Search for k diversified nearest neighbors.
         
         Busca pelos k vizinhos diversificados mais próximos do objeto de consulta.
         
+        IMPORTANTE: O algoritmo BRIDk requer que os dados sejam processados em ordem
+        crescente de distância à consulta para garantir que os k elementos
+        selecionados sejam os mais próximos E diversificados.
+        
         Args:
             query: Objeto de consulta.
             k: Número de vizinhos diversificados desejados.
+            return_debug: Se True, armazena informações de debug.
             
         Returns:
-            Lista com os k vizinhos diversificados.
+            Lista com os k vizinhos diversificados (excluindo a própria consulta).
         """
+        # CORREÇÃO: Ordenar dataset por distância à consulta
+        # O BRIDk assume que os elementos são processados em ordem crescente de distância
+        # Fase Bridge: seleciona o mais próximo (primeiro após ordenação)
+        # Fase Incremental Ranking: itera pelos seguintes aplicando diversificação
+        sorted_dataset = sorted(
+            self.dataset,
+            key=lambda elem: self.metric.distance(elem, query)
+        )
+        
         result: List[T] = []
+        debug_log = [] if return_debug else None
         pos = 0
-        while len(result) < k and pos < len(self.dataset):
-            candidate = self.dataset[pos]
+        while len(result) < k and pos < len(sorted_dataset):
+            candidate = sorted_dataset[pos]
             pos += 1
-            if self.notInfluenced(candidate, query, result):
+            
+            # FILTRO: Não incluir a própria consulta como vizinho
+            # Verifica se é o mesmo objeto (distância ~0 ou mesmo ID)
+            dist_to_query = self.metric.distance(candidate, query)
+            if dist_to_query < 1e-10:  # Praticamente zero (mesma posição)
+                continue
+            
+            # Verificar também por ID se disponível
+            if hasattr(candidate, 'getId') and hasattr(query, 'getId'):
+                if candidate.getId() == query.getId():
+                    continue
+            
+            influenced_by = self.notInfluenced(candidate, query, result, debug_log if return_debug else None)
+            if influenced_by is True or (isinstance(influenced_by, tuple) and influenced_by[0]):
                 result.append(candidate)
+                if return_debug:
+                    debug_info = influenced_by[1] if isinstance(influenced_by, tuple) else None
+                    debug_log.append({
+                        'candidate': candidate,
+                        'action': 'accepted',
+                        'distance': dist_to_query,
+                        'checks': debug_info.get('all_checks', []) if debug_info else []
+                    })
+            elif return_debug and isinstance(influenced_by, tuple):
+                debug_log.append({
+                    'candidate': candidate,
+                    'action': 'rejected',
+                    'distance': dist_to_query,
+                    'influenced_by': influenced_by[1]
+                })
+        
+        if return_debug:
+            self._debug_log = debug_log
         return result
     
     def influenceLevel(self, s: T, t: T) -> float:
@@ -82,7 +128,7 @@ class Brid(Generic[T]):
         dist = self.metric.distance(s, t)
         return (sys.float_info.max if dist == 0 else (1 / dist))
     
-    def notInfluenced(self, candidate: T, query: T, resultSet: List[T]) -> bool:
+    def notInfluenced(self, candidate: T, query: T, resultSet: List[T], debug_log: List = None) -> bool:
         """
         Check that the candidate object is not influenced
         by any other object in the response set.
@@ -94,18 +140,52 @@ class Brid(Generic[T]):
             candidate: Objeto candidato.
             query: Objeto de consulta.
             resultSet: Conjunto de resultados atual.
+            debug_log: Lista para armazenar informações de debug.
             
         Returns:
-            True se não for influenciado, False caso contrário.
+            True se não for influenciado, ou tupla (False, influencer_info).
         """
         # Iterate over list resultSet in the reverse order
         ans = True
+        all_checks = [] if debug_log is not None else None
+        
         for i in range(len(resultSet) - 1, -1, -1):
             resultElement = resultSet[i]
-            if self.isStrongInfluence(resultElement, candidate, query):
+            inf_s_to_q = self.influenceLevel(resultElement, query)
+            inf_s_to_t = self.influenceLevel(resultElement, candidate)
+            inf_q_to_t = self.influenceLevel(query, candidate)
+            dist_s_to_t = self.metric.distance(resultElement, candidate)
+            
+            is_strong = self.isStrongInfluence(resultElement, candidate, query)
+            
+            if debug_log is not None:
+                all_checks.append({
+                    'element': resultElement,
+                    'inf_s_to_t': inf_s_to_t,
+                    'inf_s_to_q': inf_s_to_q,
+                    'inf_q_to_t': inf_q_to_t,
+                    'dist_s_to_t': dist_s_to_t,
+                    'is_strong': is_strong,
+                    'cond1': inf_s_to_t >= inf_s_to_q,
+                    'cond2': inf_s_to_t >= inf_q_to_t
+                })
+            
+            if is_strong:
+                if debug_log is not None:
+                    return (False, {
+                        'influencer': resultElement,
+                        'inf_s_to_t': inf_s_to_t,
+                        'inf_s_to_q': inf_s_to_q,
+                        'inf_q_to_t': inf_q_to_t,
+                        'dist_s_to_t': dist_s_to_t,
+                        'all_checks': all_checks
+                    })
                 ans = False
                 break
-        return ans
+        
+        if debug_log is not None and ans:
+            return (True, {'all_checks': all_checks})
+        return ans if debug_log is None else (True, None)
     
     def isStrongInfluence(self, s: T, t: T, query: T) -> bool:
         """

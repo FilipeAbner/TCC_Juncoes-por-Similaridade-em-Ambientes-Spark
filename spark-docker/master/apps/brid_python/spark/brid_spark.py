@@ -7,7 +7,7 @@ Implementa a arquitetura de 2 fases do BRIDk:
 - Fase 2: Refinamento e busca global
 """
 
-from typing import List, Tuple as TupleType, Iterator, Optional
+from typing import List, Tuple as TupleType, Iterator, Optional, Union
 from pyspark import SparkContext, RDD
 from pyspark.sql import SparkSession
 
@@ -216,13 +216,18 @@ class BridSpark:
         
         # Aplicar Brid em cada partição
         def brid_partition(iterator: Iterator[Tuple]) -> Iterator[Tuple]:
-            """Executa Brid em cada partição."""
+            """Executa Brid em cada partição.
+            
+            IMPORTANTE: O BRIDk já faz a ordenação internamente por distância à consulta.
+            Cada partição processa seus elementos localmente e retorna até k candidatos.
+            """
             dataset_local = list(iterator)
             if not dataset_local:
                 return iter([])
             
             metric = metric_class()
             brid = Brid(dataset_local, metric)
+            # O método search() do Brid já ordena os dados internamente
             local_results = brid.search(query_bc.value, k_bc.value)
             
             print(f"Partição: {len(dataset_local)} tuplas -> {len(local_results)} resultados")
@@ -254,8 +259,10 @@ class BridSpark:
         dataset_rdd: RDD[Tuple],
         query: Tuple,
         k: int,
-        num_partitions: int
-    ) -> List[Tuple]:
+        num_partitions: int,
+        return_debug_info: bool = False,
+        custom_partitioner: Optional[str] = None
+    ) -> Union[List[Tuple], TupleType[List[Tuple], dict]]:
         """
         Executa BRIDk diretamente sobre um RDD de Tuples.
         
@@ -266,30 +273,101 @@ class BridSpark:
             query: Objeto de consulta.
             k: Número de vizinhos diversificados desejados.
             num_partitions: Número de partições.
+            return_debug_info: Se True, retorna informações de debug.
+            custom_partitioner: Tipo de particionador ('x_sign' para particionar por sinal de X).
             
         Returns:
-            Lista com k vizinhos diversificados.
+            Lista com k vizinhos diversificados, ou tupla (resultados, debug_info).
         """
         query_bc = self.sc.broadcast(query)
         k_bc = self.sc.broadcast(k)
         metric_class = type(self.metric)
         
-        # Reparticionar
-        repartitioned_rdd = dataset_rdd.repartition(num_partitions)
+        # Reparticionar com particionador customizado se especificado
+        if custom_partitioner == 'x_sign':
+            # Particionador baseado no sinal da coordenada X
+            # X negativo -> partição 0, X positivo -> partição 1
+            def x_sign_partitioner(tupla):
+                x_coord = tupla.getAttributes()[0]
+                partition_id = 0 if x_coord < 0 else 1
+                return (partition_id, tupla)
+            
+            # Criar RDD com chave (partition_id, tupla) e particionar por chave
+            keyed_rdd = dataset_rdd.map(x_sign_partitioner)
+            repartitioned_rdd = keyed_rdd.partitionBy(2).map(lambda x: x[1])
+        else:
+            # Particionamento padrão (aleatório)
+            repartitioned_rdd = dataset_rdd.repartition(num_partitions)
         
         # Fase 1: Brid local
-        def brid_partition(iterator: Iterator[Tuple]) -> Iterator[Tuple]:
+        def brid_partition_with_index(partition_index: int, iterator: Iterator[Tuple]) -> Iterator[TupleType[int, Tuple, List, List]]:
+            """Executa Brid localmente em cada partição com informações de debug.
+            
+            O método search() do Brid ordena internamente os elementos
+            por distância à consulta antes de aplicar a diversificação.
+            """
             dataset_local = list(iterator)
             if not dataset_local:
                 return iter([])
             
+            # DEBUG: Log dos elementos recebidos nesta partição
+            import sys
+            query = query_bc.value
             metric = metric_class()
+            
+            print(f"\n[PARTITION {partition_index}] Recebeu {len(dataset_local)} elementos:", file=sys.stderr)
+            for elem in sorted(dataset_local, key=lambda e: metric.distance(e, query))[:5]:
+                x_coord = elem.getAttributes()[0]
+                dist = metric.distance(elem, query)
+                print(f"  ID {elem.getId()}: X={x_coord:.4f}, dist={dist:.4f}", file=sys.stderr)
+            if len(dataset_local) > 5:
+                print(f"  ... e mais {len(dataset_local)-5} elementos", file=sys.stderr)
+            
             brid = Brid(dataset_local, metric)
-            return iter(brid.search(query_bc.value, k_bc.value))
+            # search() já ordena os dados internamente por distância à consulta
+            local_results = brid.search(query, k_bc.value, return_debug=True)
+            debug_log = getattr(brid, '_debug_log', [])
+            
+            print(f"[PARTITION {partition_index}] BRIDk retornou {len(local_results)} candidatos:", file=sys.stderr)
+            for elem in local_results:
+                x_coord = elem.getAttributes()[0]
+                dist = metric.distance(elem, query)
+                print(f"  ID {elem.getId()}: X={x_coord:.4f}, dist={dist:.4f}", file=sys.stderr)
+            
+            # Retornar tuplas (partition_index, candidato, todos_elementos_da_particao, debug_log) para rastreamento
+            all_elements_info = [(e.getId(), e.getAttributes()[0], metric.distance(e, query)) for e in dataset_local]
+            return iter((partition_index, candidate, all_elements_info, debug_log) for candidate in local_results)
         
-        partial_results = repartitioned_rdd.mapPartitions(brid_partition).collect()
+        # Coletar com informações de partição
+        partial_results_with_partition = repartitioned_rdd.mapPartitionsWithIndex(brid_partition_with_index).collect()
+        
+        # Separar resultados e informações de debug
+        partition_info = {}
+        partition_all_elements = {}
+        partition_debug_log = {}
+        partial_results = []
+        
+        for partition_idx, candidate, all_elements_info, debug_log in partial_results_with_partition:
+            if partition_idx not in partition_info:
+                partition_info[partition_idx] = []
+                partition_all_elements[partition_idx] = all_elements_info
+                partition_debug_log[partition_idx] = debug_log
+            partition_info[partition_idx].append(candidate)
+            partial_results.append(candidate)
         
         # Fase 2: Brid global
         metric_final = metric_class()
         brid_final = Brid(partial_results, metric_final)
-        return brid_final.search(query, k)
+        final_results = brid_final.search(query, k)
+        
+        if return_debug_info:
+            debug_info = {
+                'partition_candidates': partition_info,
+                'partition_all_elements': partition_all_elements,
+                'partition_debug_log': partition_debug_log,
+                'total_candidates': len(partial_results),
+                'num_partitions': num_partitions
+            }
+            return final_results, debug_info
+        else:
+            return final_results
