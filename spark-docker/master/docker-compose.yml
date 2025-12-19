@@ -10,11 +10,13 @@ services:
       - "${SPARK_MASTER_WEBUI_PORT}:${SPARK_MASTER_WEBUI_PORT}"
       - "4040:4040"
       - "${SPARK_DRIVER_PORT}-${SPARK_DRIVER_BLOCKMANAGER_PORT}:${SPARK_DRIVER_PORT}-${SPARK_DRIVER_BLOCKMANAGER_PORT}"
+      - "18080:18080"  # Porta para Spark History Server
     volumes:
       - ./apps:/apps
       - type: bind
         source: /shared/spark-data
         target: /data
+      - ./spark-events:/tmp/spark-events  # Volume para logs de eventos
     networks:
       spark-network:
         aliases:
@@ -25,6 +27,7 @@ services:
       - SPARK_DRIVER_HOST=${SPARK_DRIVER_HOST}
       - SPARK_DRIVER_PORT=${SPARK_DRIVER_PORT}
       - SPARK_DRIVER_BLOCKMANAGER_PORT=${SPARK_DRIVER_BLOCKMANAGER_PORT}
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/tmp/spark-events -Dspark.history.ui.port=18080  # Configuração do History Server
     extra_hosts:
       - "spark-master:${SPARK_DRIVER_HOST}"
 
