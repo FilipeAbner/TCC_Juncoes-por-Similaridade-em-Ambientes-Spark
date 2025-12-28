@@ -62,7 +62,7 @@ class Brid(Generic[T]):
         Returns:
             Lista com os k vizinhos diversificados (excluindo a própria consulta).
         """
-        # CORREÇÃO: Ordenar dataset por distância à consulta
+        # O dataset é ordenado por distância à consulta
         # O BRIDk assume que os elementos são processados em ordem crescente de distância
         # Fase Bridge: seleciona o mais próximo (primeiro após ordenação)
         # Fase Incremental Ranking: itera pelos seguintes aplicando diversificação
