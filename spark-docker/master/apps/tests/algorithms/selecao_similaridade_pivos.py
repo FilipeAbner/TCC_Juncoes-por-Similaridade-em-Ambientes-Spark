@@ -128,14 +128,13 @@ def calcular_distancia(tupla1, tupla2):
 def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
     """
     Seleciona pivôs usando estratégia k-means++.
-    Garante pivôs bem distribuídos pelo espaço.
     
     Algoritmo k-means++:
     1. Escolhe primeiro pivô aleatoriamente
     2. Para cada próximo pivô:
        - Calcula distância de cada ponto ao pivô mais próximo
        - Escolhe novo pivô com probabilidade proporcional à distância²
-    3. Isso espalha os pivôs pelo espaço de forma eficiente
+    3. Isso espalha os pivôs pelo espaço
     
     Args:
         dataset: Lista de tuplas
@@ -145,7 +144,6 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
     Returns:
         list: Lista de tuplas selecionadas como pivôs
     """
-    print(f"\nSelecionando {num_pivos} pivôs usando k-means++...")
     
     random.seed(seed)
     np.random.seed(seed)
@@ -159,7 +157,7 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
     # 1. Primeiro pivô: escolher aleatoriamente
     primeiro_pivo = random.choice(dataset)
     pivos.append(primeiro_pivo)
-    print(f"  Pivô 1/{num_pivos}: ID {primeiro_pivo.getId()}")
+    pivos_ids = set([primeiro_pivo.getId()])
     
     # 2. Pivôs seguintes: k-means++
     for i in range(1, num_pivos):
@@ -168,7 +166,7 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
         
         for tupla in dataset:
             # Pula se já é pivô
-            if tupla.getId() in [p.getId() for p in pivos]:
+            if tupla.getId() in pivos_ids:
                 distancias_min.append(0)
                 continue
             
@@ -193,10 +191,8 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
         idx_proximo_pivo = np.random.choice(len(dataset), p=probabilidades)
         proximo_pivo = dataset[idx_proximo_pivo]
         pivos.append(proximo_pivo)
-        
-        print(f"  Pivô {i+1}/{num_pivos}: ID {proximo_pivo.getId()}")
-    
-    print(f"\n  ✓ {len(pivos)} pivôs selecionados com sucesso!")
+        pivos_ids.add(proximo_pivo.getId())  # Adicionar ao conjunto
+            
     return pivos
 
 
