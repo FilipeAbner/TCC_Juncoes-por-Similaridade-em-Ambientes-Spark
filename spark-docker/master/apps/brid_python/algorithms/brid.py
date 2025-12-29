@@ -79,15 +79,10 @@ class Brid(Generic[T]):
             pos += 1
             
             # FILTRO: Não incluir a própria consulta como vizinho
-            # Verifica se é o mesmo objeto (distância ~0 ou mesmo ID)
+            # Verifica se é o mesmo objeto (distância ~0)
             dist_to_query = self.metric.distance(candidate, query)
             if dist_to_query < 1e-10:  # Praticamente zero (mesma posição)
                 continue
-            
-            # Verificar também por ID se disponível
-            if hasattr(candidate, 'getId') and hasattr(query, 'getId'):
-                if candidate.getId() == query.getId():
-                    continue
             
             influenced_by = self.notInfluenced(candidate, query, result, debug_log if return_debug else None)
             if influenced_by is True or (isinstance(influenced_by, tuple) and influenced_by[0]):

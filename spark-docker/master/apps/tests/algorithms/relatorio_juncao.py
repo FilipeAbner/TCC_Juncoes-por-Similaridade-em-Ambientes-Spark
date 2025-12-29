@@ -128,8 +128,6 @@ def gerar_relatorio_debug(consulta_id, resultados, descricoes_a, descricoes_b,
         
         candidatos_com_distancia = []
         for tupla_b in dataset_b:
-            if tupla_b.getId() == consulta_id:
-                continue  # Não incluir a própria consulta se estiver em B
             dist = np.linalg.norm(np.array(tupla_b.getAttributes()) - np.array(consulta.getAttributes()))
             desc = descricoes_b.get(tupla_b.getId(), '')
             candidatos_com_distancia.append({
