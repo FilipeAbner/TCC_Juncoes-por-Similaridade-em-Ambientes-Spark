@@ -272,12 +272,12 @@ def executar_juncao_similaridade(spark_session, dataset_a_rdd_particionado, data
         # Executar BRIDk no RDD completo
         inicio_bridk = time.time()
         
-        resultado_b = brid.execute_from_rdd(
+        resultado_b, debug_info = brid.execute_from_rdd(
             dataset_rdd=dataset_b_rdd_particionado,
             query=consulta_a,
             k=k,
             num_partitions=d,
-            return_debug_info=False,
+            return_debug_info=True,
             custom_partitioner='pivot_based'
         )
         
@@ -288,6 +288,7 @@ def executar_juncao_similaridade(spark_session, dataset_a_rdd_particionado, data
         resultado_info = {
             'consulta_a': consulta_a,
             'resultado_b': resultado_b,
+            'debug_info': debug_info,
             'k': k,
             'd': d
         }
@@ -329,8 +330,8 @@ def main():
     result_dir = criar_diretorio_resultado()
     
     # Definir caminhos dos datasets usuados na junção
-    caminho_dataset_a = "/apps/Datasets/Simples/dataset_geom_1.txt"
-    caminho_dataset_b = "/apps/Datasets/Simples/dataset_geom_2.txt"
+    caminho_dataset_a = "/apps/Datasets/Simples/3d_1.txt"
+    caminho_dataset_b = "/apps/Datasets/Simples/3d_2.txt"
     
     # Ler Dataset A (consultas)
     dataset_a, metadados_a, descricoes_a = ler_dataset(caminho_dataset_a)
@@ -339,16 +340,30 @@ def main():
     dataset_b, metadados_b, descricoes_b = ler_dataset(caminho_dataset_b)
     
     # Verificar compatibilidade de dimensões: TO DO: Permitir comparação entre datasets com diferentes dimensões
-    if metadados_a['num_dimensoes'] != metadados_b['num_dimensoes']:
-        print("\n" + "=" * 70)
-        print("ERRO: Dimensões incompatíveis!")
-        print("=" * 70)
-        print(f"Dataset A tem {metadados_a['num_dimensoes']} dimensões")
-        print(f"Dataset B tem {metadados_b['num_dimensoes']} dimensões")
-        print("\nPara realizar junção por similaridade, os datasets devem ter")
-        print("o mesmo número de dimensões.")
-        sys.exit(1)
+    # Agora permitimos dimensões diferentes, padronizando para a dimensão máxima
+    dim_max = max(metadados_a['num_dimensoes'], metadados_b['num_dimensoes'])
+    
+    def pad_attributes(tupla, dim_max):
+        attrs = tupla.getAttributes()
+        if len(attrs) < dim_max:
+            padded = attrs + [0.0] * (dim_max - len(attrs))
+            tupla.setAttributes(padded)
+        return tupla
+    
+    # Padronizar todos os objetos para dim_max
+    dataset_a = [pad_attributes(t, dim_max) for t in dataset_a]
+    dataset_b = [pad_attributes(t, dim_max) for t in dataset_b]
+    
+    # Atualizar metadados
+    metadados_a['num_dimensoes'] = dim_max
+    metadados_b['num_dimensoes'] = dim_max
         
+    print(f"\nDataset A:" )
+    for tupla in dataset_a[:5]:
+        print(tupla)
+    print(f"\nDataset B:" )
+    for tupla in dataset_b[:5]:
+        print(tupla)
     spark = SparkSession.builder \
         .appName("Juncao por Similaridade - BRIDk") \
         .getOrCreate()
@@ -364,8 +379,8 @@ def main():
     dataset_a_consultas = selecionar_amostra_dataset_a(dataset_a, max_consultas)
     
     # Parâmetros da junção
-    k = 5  # Número de vizinhos diversificados por consulta
-    d = 5   # Número de partições (ajuste conforme workers disponíveis)
+    k = 3  # Número de vizinhos diversificados por consulta
+    d = 3   # Número de partições (ajuste conforme workers disponíveis)
     # O numero de pivos é igual ao numero de partições
 
     pivos = selecionar_pivos_kmeans_plus_plus(dataset_b, d, seed=42)
