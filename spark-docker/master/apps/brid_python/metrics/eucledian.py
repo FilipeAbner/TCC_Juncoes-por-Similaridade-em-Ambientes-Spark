@@ -4,7 +4,7 @@ Métrica Euclidiana.
 Conversão fiel do arquivo Java: com/metrics/Eucledian.java
 """
 
-import math
+import math,sys
 from typing import TYPE_CHECKING
 from .metric import Metric
 

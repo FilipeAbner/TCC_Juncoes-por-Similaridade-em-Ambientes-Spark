@@ -133,9 +133,9 @@ class BridSpark:
         # Debug
         if (return_debug_info):
             print(f"\n Total de candidatos locais: {len(all_candidates)} \n", file=sys.stderr)            
-            sorted_all = sorted(all_candidates, key=lambda c: metric_final.distance(c, query))
-            print(f"Candidatos ordenados (top 10): {[f'{c.getId()}:{metric_final.distance(c, query):.4f}' for c in sorted_all[:10]]}", file=sys.stderr)
-            print(f"Resultados BRIDk selecionados: {[f'{c.getId()}:{metric_final.distance(c, query):.4f}' for c in final_results]}", file=sys.stderr)
+            sorted_all = sorted(all_candidates, key=lambda c: brid_final.get_cached_distance(c, query))
+            print(f"Candidatos ordenados (top 10): {[f'{c.getId()}:{brid_final.get_cached_distance(c, query):.4f}' for c in sorted_all[:10]]}", file=sys.stderr)
+            print(f"Resultados BRIDk selecionados: {[f'{c.getId()}:{brid_final.get_cached_distance(c, query):.4f}' for c in final_results]}", file=sys.stderr)
             
             print(f"\nResultados finais: {len(final_results)} tuplas")
             print(f"Total de cálculos de distância: {metric_final.numberOfCalculations}")
