@@ -89,6 +89,12 @@ Verifique se está rodando:
 
 **IMPORTANTE:** Para que os Workers acessem os mesmos arquivos que o Master, vamos exportar o diretório `apps` via NFS.
 
+ Criar network docker externa:
+```bash 
+    sudo docker network create spark-network --driver bridge --subnet 172.20.0.0/16 --gateway 172.20.0.1
+```
+
+
 #### **Método Recomendado: Exportar diretório `apps` do Master**
 
 Este método garante que Master e Workers vejam exatamente os mesmos arquivos.
@@ -147,12 +153,12 @@ sudo apt-get install -y nfs-common
 sudo mkdir -p /mnt/master-apps
 
 # 3. Testar se consegue ver o compartilhamento NFS do Master
-showmount -e 192.168.1.7
+showmount -e 192.168.1.6
 # Deve mostrar: /home/filipe-abner/.../master/apps *
 
 # 4. Montar o diretório apps do Master
 # SUBSTITUA o caminho pelo caminho real retornado por showmount
-sudo mount -t nfs 192.168.1.7:/home/filipe-abner/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps /mnt/master-apps
+sudo mount -t nfs 192.168.1.6:/home/filipe-abner/TCC_Juncoes-por-Similaridade-em-Ambientes-Spark/spark-docker/master/apps /mnt/master-apps
 
 # 5. Verificar se montou corretamente
 ls -la /mnt/master-apps/
@@ -443,4 +449,13 @@ spark-submit \
 ### Ver logs em tempo real:
 ```bash
 sudo docker exec -it spark-master tail -f /opt/spark/logs/$(sudo docker exec spark-master ls -t /opt/spark/logs/ | grep spark- | head -1)
+```
+
+### Spark Events
+
+Os logs de eventos do Spark são salvos em `/opt/spark/events` dentro do container Master. Junto da inicialização do master 
+os eventos tambem são montados em um volume local `./master/spark-events` para facilitar o acesso, e analisar o ciclo da aplicação sendo possivel acessa-los diretamente na máquina host através da url:
+
+```bash
+  http://localhost:18080
 ```
