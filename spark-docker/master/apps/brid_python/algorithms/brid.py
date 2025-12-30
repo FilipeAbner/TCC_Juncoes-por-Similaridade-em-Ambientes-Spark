@@ -6,6 +6,7 @@ Conversão fiel do arquivo Java: com/algorithms/Brid.java
 
 from typing import Generic, TypeVar, List, Optional, Union
 import sys
+import time
 
 from ..metrics.metric import Metric
 from ..types.point import Point
@@ -22,6 +23,7 @@ class Brid(Generic[T]):
     
     metric: Metric
     dataset: List[T]
+    _dist_cache: dict  # Cache global de distâncias
     
     def __init__(self, dataset_or_metric: Union[List[T], Metric], metric: Optional[Metric] = None):
         """
@@ -43,6 +45,16 @@ class Brid(Generic[T]):
             # Construtor: Brid(Metric metric)
             self.metric = dataset_or_metric  # type: ignore
             self.dataset = []
+        
+        # Inicializar cache global de distâncias
+        self._dist_cache = {}
+    
+    def get_cached_distance(self, obj1: T, obj2: T) -> float:
+        """Obtém distância do cache ou calcula se necessário."""
+        key = (min(obj1.getId(), obj2.getId()), max(obj1.getId(), obj2.getId()))
+        if key not in self._dist_cache:
+            self._dist_cache[key] = self.metric.distance(obj1, obj2)
+        return self._dist_cache[key]
     
     def search(self, query: T, k: int, return_debug: bool = False) -> List[T]:
         """
@@ -61,14 +73,18 @@ class Brid(Generic[T]):
             
         Returns:
             Lista com os k vizinhos diversificados (excluindo a própria consulta).
-        """
-        # CORREÇÃO: Ordenar dataset por distância à consulta
+        """        
+        # Medição de performance
+        start_time = time.time()
+        initial_calculations = self.metric.numberOfCalculations
+        
+        # O dataset é ordenado por distância à consulta
         # O BRIDk assume que os elementos são processados em ordem crescente de distância
         # Fase Bridge: seleciona o mais próximo (primeiro após ordenação)
         # Fase Incremental Ranking: itera pelos seguintes aplicando diversificação
         sorted_dataset = sorted(
             self.dataset,
-            key=lambda elem: self.metric.distance(elem, query)
+            key=lambda elem: self.get_cached_distance(elem, query)
         )
         
         result: List[T] = []
@@ -79,15 +95,10 @@ class Brid(Generic[T]):
             pos += 1
             
             # FILTRO: Não incluir a própria consulta como vizinho
-            # Verifica se é o mesmo objeto (distância ~0 ou mesmo ID)
-            dist_to_query = self.metric.distance(candidate, query)
+            # Verifica se é o mesmo objeto (distância ~0)
+            dist_to_query = self.get_cached_distance(candidate, query)
             if dist_to_query < 1e-10:  # Praticamente zero (mesma posição)
                 continue
-            
-            # Verificar também por ID se disponível
-            if hasattr(candidate, 'getId') and hasattr(query, 'getId'):
-                if candidate.getId() == query.getId():
-                    continue
             
             influenced_by = self.notInfluenced(candidate, query, result, debug_log if return_debug else None)
             if influenced_by is True or (isinstance(influenced_by, tuple) and influenced_by[0]):
@@ -108,6 +119,15 @@ class Brid(Generic[T]):
                     'influenced_by': influenced_by[1]
                 })
         
+        # Medição de performance
+        end_time = time.time()
+        final_calculations = self.metric.numberOfCalculations
+        elapsed_time = end_time - start_time
+        calculations_used = final_calculations - initial_calculations
+        
+        if return_debug:
+            print(f"[BRIDk Performance] Tempo: {elapsed_time:.4f}s, Cálculos: {calculations_used}, Cache size: {len(self._dist_cache)}", file=sys.stderr)
+        
         if return_debug:
             self._debug_log = debug_log
         return result
@@ -125,7 +145,7 @@ class Brid(Generic[T]):
         Returns:
             Nível de influência (1/distância).
         """
-        dist = self.metric.distance(s, t)
+        dist = self.get_cached_distance(s, t)
         return (sys.float_info.max if dist == 0 else (1 / dist))
     
     def notInfluenced(self, candidate: T, query: T, resultSet: List[T], debug_log: List = None) -> bool:
@@ -154,7 +174,7 @@ class Brid(Generic[T]):
             inf_s_to_q = self.influenceLevel(resultElement, query)
             inf_s_to_t = self.influenceLevel(resultElement, candidate)
             inf_q_to_t = self.influenceLevel(query, candidate)
-            dist_s_to_t = self.metric.distance(resultElement, candidate)
+            dist_s_to_t = self.get_cached_distance(resultElement, candidate)
             
             is_strong = self.isStrongInfluence(resultElement, candidate, query)
             

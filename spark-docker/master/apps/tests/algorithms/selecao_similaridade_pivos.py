@@ -128,14 +128,13 @@ def calcular_distancia(tupla1, tupla2):
 def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
     """
     Seleciona pivôs usando estratégia k-means++.
-    Garante pivôs bem distribuídos pelo espaço.
     
     Algoritmo k-means++:
     1. Escolhe primeiro pivô aleatoriamente
     2. Para cada próximo pivô:
        - Calcula distância de cada ponto ao pivô mais próximo
        - Escolhe novo pivô com probabilidade proporcional à distância²
-    3. Isso espalha os pivôs pelo espaço de forma eficiente
+    3. Isso espalha os pivôs pelo espaço
     
     Args:
         dataset: Lista de tuplas
@@ -145,7 +144,10 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
     Returns:
         list: Lista de tuplas selecionadas como pivôs
     """
-    print(f"\nSelecionando {num_pivos} pivôs usando k-means++...")
+    
+    # Usar a mesma métrica do BRIDk
+    from brid_python.metrics.eucledian import Eucledian
+    metric = Eucledian()
     
     random.seed(seed)
     np.random.seed(seed)
@@ -159,7 +161,7 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
     # 1. Primeiro pivô: escolher aleatoriamente
     primeiro_pivo = random.choice(dataset)
     pivos.append(primeiro_pivo)
-    print(f"  Pivô 1/{num_pivos}: ID {primeiro_pivo.getId()}")
+    pivos_ids = set([primeiro_pivo.getId()])
     
     # 2. Pivôs seguintes: k-means++
     for i in range(1, num_pivos):
@@ -168,12 +170,12 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
         
         for tupla in dataset:
             # Pula se já é pivô
-            if tupla.getId() in [p.getId() for p in pivos]:
+            if tupla.getId() in pivos_ids:
                 distancias_min.append(0)
                 continue
             
             # Distância ao pivô mais próximo
-            dist_min = min([calcular_distancia(tupla, pivo) for pivo in pivos])
+            dist_min = min([metric.distance(tupla, pivo) for pivo in pivos])
             distancias_min.append(dist_min)
         
         # Converter para array numpy
@@ -193,10 +195,8 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
         idx_proximo_pivo = np.random.choice(len(dataset), p=probabilidades)
         proximo_pivo = dataset[idx_proximo_pivo]
         pivos.append(proximo_pivo)
-        
-        print(f"  Pivô {i+1}/{num_pivos}: ID {proximo_pivo.getId()}")
-    
-    print(f"\n  ✓ {len(pivos)} pivôs selecionados com sucesso!")
+        pivos_ids.add(proximo_pivo.getId())  # Adicionar ao conjunto
+            
     return pivos
 
 
@@ -276,7 +276,7 @@ def calcular_distancias_aos_pivos(spark_session, dataset, pivos, num_particoes):
 
 
 def filtrar_com_desigualdade_triangular(consulta, dataset, pivos, 
-                                       distancias_pivos_dataset, raio):
+                                       distancias_pivos_dataset, raio, metric=None):
     """
     Filtra candidatos usando desigualdade triangular.
     
@@ -301,14 +301,19 @@ def filtrar_com_desigualdade_triangular(consulta, dataset, pivos,
         pivos: Lista de pivôs
         distancias_pivos_dataset: Dict {tupla_id: distancia_ao_pivo_da_particao}
         raio: Raio de busca
+        metric: Instância da métrica (opcional, usa Eucledian se None)
     
     Returns:
         tuple: (candidatos_filtrados, estatisticas)
     """
+    if metric is None:
+        from brid_python.metrics.eucledian import Eucledian
+        metric = Eucledian()
+    
     # Calcular distâncias da consulta a todos os pivôs
     distancias_consulta_pivos = []
     for pivo in pivos:
-        dist = calcular_distancia(consulta, pivo)
+        dist = metric.distance(consulta, pivo)
         distancias_consulta_pivos.append(dist)
     
     candidatos = []
@@ -415,6 +420,10 @@ def executar_selecao_similaridade_com_pivos(spark_session, dataset, consultas,
     print(f"  Consultas: {len(consultas)}")
     print(f"  Tamanho dataset: {len(dataset)}")
     
+    # Usar a mesma métrica do BRIDk
+    from brid_python.metrics.eucledian import Eucledian
+    metric = Eucledian()
+    
     brid = BridSpark(spark_session)
     resultados = {}
     
@@ -433,7 +442,7 @@ def executar_selecao_similaridade_com_pivos(spark_session, dataset, consultas,
         
         # Estimar raio inicial baseado em k e número de pivôs
         # Heurística: usar distância média aos pivôs como referência
-        distancias_consulta_pivos = [calcular_distancia(consulta, p) for p in pivos]
+        distancias_consulta_pivos = [metric.distance(consulta, p) for p in pivos]
         raio_estimado = np.mean(distancias_consulta_pivos) * 1.5
         
         print(f"  Raio estimado para filtragem: {raio_estimado:.4f}")
@@ -442,7 +451,7 @@ def executar_selecao_similaridade_com_pivos(spark_session, dataset, consultas,
         inicio_filtragem = time.time()
         
         candidatos, stats_filtragem = filtrar_com_desigualdade_triangular(
-            consulta, dataset, pivos, distancias_pivos_dataset, raio_estimado
+            consulta, dataset, pivos, distancias_pivos_dataset, raio_estimado, metric
         )
         
         tempo_filtragem = time.time() - inicio_filtragem
@@ -490,7 +499,7 @@ def executar_selecao_similaridade_com_pivos(spark_session, dataset, consultas,
             
             print(f"      Candidatos selecionados:")
             for cand in candidates:
-                dist = calcular_distancia(consulta, cand)
+                dist = metric.distance(consulta, cand)
                 x_coord = cand.getAttributes()[0]
                 print(f"        ID {cand.getId()}: X={x_coord:.4f}, dist={dist:.4f}")
         
@@ -664,6 +673,10 @@ def gerar_relatorio_com_pivos(resultados, descricoes, metadados, pivos, output_f
     """Gera relatório detalhado incluindo estatísticas de pivôs."""
     print(f"\nGerando relatório: {output_file}")
     
+    # Usar a mesma métrica do BRIDk
+    from brid_python.metrics.eucledian import Eucledian
+    metric = Eucledian()
+    
     # Remover estatísticas globais
     estatisticas_globais = resultados.pop('_estatisticas_globais', None)
     
@@ -813,7 +826,7 @@ def gerar_relatorio_com_pivos(resultados, descricoes, metadados, pivos, output_f
                 if tupla_id in descricoes:
                     f.write(f"   Descrição: {descricoes[tupla_id]}\n")
                 
-                dist = calcular_distancia(tupla, consulta)
+                dist = metric.distance(tupla, consulta)
                 f.write(f"   Distância da consulta: {dist:.4f}\n")
             
             f.write("\n" + "=" * 80 + "\n")
