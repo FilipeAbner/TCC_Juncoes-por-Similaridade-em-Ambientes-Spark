@@ -145,6 +145,10 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
         list: Lista de tuplas selecionadas como pivôs
     """
     
+    # Usar a mesma métrica do BRIDk
+    from brid_python.metrics.eucledian import Eucledian
+    metric = Eucledian()
+    
     random.seed(seed)
     np.random.seed(seed)
     
@@ -171,7 +175,7 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
                 continue
             
             # Distância ao pivô mais próximo
-            dist_min = min([calcular_distancia(tupla, pivo) for pivo in pivos])
+            dist_min = min([metric.distance(tupla, pivo) for pivo in pivos])
             distancias_min.append(dist_min)
         
         # Converter para array numpy
@@ -272,7 +276,7 @@ def calcular_distancias_aos_pivos(spark_session, dataset, pivos, num_particoes):
 
 
 def filtrar_com_desigualdade_triangular(consulta, dataset, pivos, 
-                                       distancias_pivos_dataset, raio):
+                                       distancias_pivos_dataset, raio, metric=None):
     """
     Filtra candidatos usando desigualdade triangular.
     
@@ -297,14 +301,19 @@ def filtrar_com_desigualdade_triangular(consulta, dataset, pivos,
         pivos: Lista de pivôs
         distancias_pivos_dataset: Dict {tupla_id: distancia_ao_pivo_da_particao}
         raio: Raio de busca
+        metric: Instância da métrica (opcional, usa Eucledian se None)
     
     Returns:
         tuple: (candidatos_filtrados, estatisticas)
     """
+    if metric is None:
+        from brid_python.metrics.eucledian import Eucledian
+        metric = Eucledian()
+    
     # Calcular distâncias da consulta a todos os pivôs
     distancias_consulta_pivos = []
     for pivo in pivos:
-        dist = calcular_distancia(consulta, pivo)
+        dist = metric.distance(consulta, pivo)
         distancias_consulta_pivos.append(dist)
     
     candidatos = []
@@ -411,6 +420,10 @@ def executar_selecao_similaridade_com_pivos(spark_session, dataset, consultas,
     print(f"  Consultas: {len(consultas)}")
     print(f"  Tamanho dataset: {len(dataset)}")
     
+    # Usar a mesma métrica do BRIDk
+    from brid_python.metrics.eucledian import Eucledian
+    metric = Eucledian()
+    
     brid = BridSpark(spark_session)
     resultados = {}
     
@@ -429,7 +442,7 @@ def executar_selecao_similaridade_com_pivos(spark_session, dataset, consultas,
         
         # Estimar raio inicial baseado em k e número de pivôs
         # Heurística: usar distância média aos pivôs como referência
-        distancias_consulta_pivos = [calcular_distancia(consulta, p) for p in pivos]
+        distancias_consulta_pivos = [metric.distance(consulta, p) for p in pivos]
         raio_estimado = np.mean(distancias_consulta_pivos) * 1.5
         
         print(f"  Raio estimado para filtragem: {raio_estimado:.4f}")
@@ -438,7 +451,7 @@ def executar_selecao_similaridade_com_pivos(spark_session, dataset, consultas,
         inicio_filtragem = time.time()
         
         candidatos, stats_filtragem = filtrar_com_desigualdade_triangular(
-            consulta, dataset, pivos, distancias_pivos_dataset, raio_estimado
+            consulta, dataset, pivos, distancias_pivos_dataset, raio_estimado, metric
         )
         
         tempo_filtragem = time.time() - inicio_filtragem
@@ -486,7 +499,7 @@ def executar_selecao_similaridade_com_pivos(spark_session, dataset, consultas,
             
             print(f"      Candidatos selecionados:")
             for cand in candidates:
-                dist = calcular_distancia(consulta, cand)
+                dist = metric.distance(consulta, cand)
                 x_coord = cand.getAttributes()[0]
                 print(f"        ID {cand.getId()}: X={x_coord:.4f}, dist={dist:.4f}")
         
@@ -660,6 +673,10 @@ def gerar_relatorio_com_pivos(resultados, descricoes, metadados, pivos, output_f
     """Gera relatório detalhado incluindo estatísticas de pivôs."""
     print(f"\nGerando relatório: {output_file}")
     
+    # Usar a mesma métrica do BRIDk
+    from brid_python.metrics.eucledian import Eucledian
+    metric = Eucledian()
+    
     # Remover estatísticas globais
     estatisticas_globais = resultados.pop('_estatisticas_globais', None)
     
@@ -809,7 +826,7 @@ def gerar_relatorio_com_pivos(resultados, descricoes, metadados, pivos, output_f
                 if tupla_id in descricoes:
                     f.write(f"   Descrição: {descricoes[tupla_id]}\n")
                 
-                dist = calcular_distancia(tupla, consulta)
+                dist = metric.distance(tupla, consulta)
                 f.write(f"   Distância da consulta: {dist:.4f}\n")
             
             f.write("\n" + "=" * 80 + "\n")
