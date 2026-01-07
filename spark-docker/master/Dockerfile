@@ -46,19 +46,22 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.
 COPY spark-env.sh ${SPARK_HOME}/conf/spark-env.sh
 COPY spark-defaults.conf ${SPARK_HOME}/conf/spark-defaults.conf
 COPY log4j2.properties ${SPARK_HOME}/conf/log4j2.properties
+COPY entrypoint-master.sh /usr/local/bin/entrypoint.sh
 
-# Torna spark-env.sh executável e ajusta permissões
+# Torna scripts executáveis e ajusta permissões
 RUN chmod +x ${SPARK_HOME}/conf/spark-env.sh && \
+    chmod +x /usr/local/bin/entrypoint.sh && \
     chown -R spark:spark ${SPARK_HOME}/conf
 
 COPY ../apps/ /apps/
 
-USER ${SPARK_USER}
-WORKDIR /home/${SPARK_USER}
+# Nota: Container inicia como root para permitir modificação do /etc/hosts
+# O entrypoint script muda para o usuário spark após configuração
+WORKDIR /home/spark
 
 # Porta padrão do worker (UI)
 EXPOSE 7077 8080
 
-# Script para substituir variáveis de ambiente no spark-defaults.conf e iniciar serviços
-ENTRYPOINT ["/bin/bash", "-c", "envsubst < ${SPARK_HOME}/conf/spark-defaults.conf > ${SPARK_HOME}/conf/spark-defaults.conf.tmp && mv ${SPARK_HOME}/conf/spark-defaults.conf.tmp ${SPARK_HOME}/conf/spark-defaults.conf && /opt/spark/sbin/start-history-server.sh && exec /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master"]
+# Usa script de entrypoint que resolve hostname para network_mode: host
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
