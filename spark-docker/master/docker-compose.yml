@@ -5,22 +5,13 @@ services:
     hostname: spark-master
     env_file:
       - .env
-    ports:
-      - "${SPARK_MASTER_PORT}:${SPARK_MASTER_PORT}"
-      - "${SPARK_MASTER_WEBUI_PORT}:${SPARK_MASTER_WEBUI_PORT}"
-      - "4040:4040"
-      - "${SPARK_DRIVER_PORT}-${SPARK_DRIVER_BLOCKMANAGER_PORT}:${SPARK_DRIVER_PORT}-${SPARK_DRIVER_BLOCKMANAGER_PORT}"
-      - "18080:18080"  # Porta para Spark History Server
+    network_mode: host  # Usa rede do host para multi-máquina
     volumes:
       - ./apps:/apps
       - type: bind
         source: /shared/spark-data
         target: /data
       - ./spark-events:/tmp/spark-events  # Volume para logs de eventos
-    networks:
-      spark-network:
-        aliases:
-          - spark-master
     environment:
       - SPARK_MASTER_HOST=0.0.0.0
       - SPARK_MASTER_PORT=${SPARK_MASTER_PORT}
@@ -28,10 +19,6 @@ services:
       - SPARK_DRIVER_PORT=${SPARK_DRIVER_PORT}
       - SPARK_DRIVER_BLOCKMANAGER_PORT=${SPARK_DRIVER_BLOCKMANAGER_PORT}
       - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/tmp/spark-events -Dspark.history.ui.port=18080  # Configuração do History Server
-    extra_hosts:
-      - "spark-master:${SPARK_DRIVER_HOST}"
 
-networks:
-  spark-network:
-    external: true
-    name: spark-network
+# Nota: network_mode: host não é compatível com networks e ports
+# As portas são expostas diretamente na rede do host

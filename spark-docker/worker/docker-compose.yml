@@ -4,24 +4,15 @@ services:
     container_name: spark-worker
     env_file:
       - .env
-    ports:
-      - "${SPARK_WORKER_WEBUI_PORT}:${SPARK_WORKER_WEBUI_PORT}"
+    network_mode: host  # Usa rede do host para multi-máquina
     volumes:
       - /mnt/master-apps:/apps
-    networks:
-      - spark-network
     environment:
       - SPARK_MASTER_URL=${SPARK_MASTER_URL}
       - SPARK_WORKER_WEBUI_PORT=${SPARK_WORKER_WEBUI_PORT}
       - SPARK_WORKER_CORES=${SPARK_WORKER_CORES:-2}
       - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY:-2g}
-    extra_hosts:
-      - "spark-master:${SPARK_MASTER_IP}"
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
+      - SPARK_LOCAL_IP=${SPARK_LOCAL_IP}  # IP real da máquina worker
 
-networks:
-  spark-network:
-    external: true
-    name: spark-network
+# Nota: network_mode: host não é compatível com networks, ports e extra_hosts
+# As portas são expostas diretamente na rede do host
