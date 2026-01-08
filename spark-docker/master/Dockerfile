@@ -22,9 +22,10 @@ RUN apt-get update && \
         gettext-base && \
     rm -rf /var/lib/apt/lists/*
 
-# Cria usuário não-root
+# Cria usuário não-root com UID fixo para compatibilidade com volumes
 ARG SPARK_USER=spark
-RUN useradd -m -s /bin/bash ${SPARK_USER}
+RUN groupadd -g 1000 spark && \
+    useradd -u 1000 -g 1000 -m -s /bin/bash ${SPARK_USER}
 
 # Define diretório de trabalho
 WORKDIR /opt
@@ -35,10 +36,8 @@ RUN wget -qO /tmp/${SPARK_TGZ} ${SPARK_DOWNLOAD_URL} && \
     mv ${SPARK_VERSION} /opt/spark && \
     rm /tmp/${SPARK_TGZ}
 
-# Cria diretórios necessários e ajusta permissões
-RUN mkdir -p /opt/spark/logs /tmp/spark-events && \
-    chown -R spark:spark /opt/spark /tmp/spark-events && \
-    chmod -R 755 /tmp/spark-events
+# Cria diretórios necessários
+RUN mkdir -p /opt/spark/logs /tmp/spark-events
 
 # Instala dependências Python
 COPY ../requirements.txt /tmp/requirements.txt
@@ -50,16 +49,14 @@ COPY spark-defaults.conf ${SPARK_HOME}/conf/spark-defaults.conf
 COPY log4j2.properties ${SPARK_HOME}/conf/log4j2.properties
 COPY entrypoint-master.sh /usr/local/bin/entrypoint.sh
 
-# Torna scripts executáveis e ajusta permissões
+# Torna scripts executáveis
 RUN chmod +x ${SPARK_HOME}/conf/spark-env.sh && \
-    chmod +x /usr/local/bin/entrypoint.sh && \
-    chown -R spark:spark ${SPARK_HOME}/conf
+    chmod +x /usr/local/bin/entrypoint.sh
 
 COPY ../apps/ /apps/
 
-# Nota: Container inicia como root para permitir modificação do /etc/hosts
-# O entrypoint script muda para o usuário spark após configuração
-WORKDIR /home/spark
+# Container executa como root para evitar problemas de permissão
+WORKDIR /opt/spark
 
 # Porta padrão do worker (UI)
 EXPOSE 7077 8080

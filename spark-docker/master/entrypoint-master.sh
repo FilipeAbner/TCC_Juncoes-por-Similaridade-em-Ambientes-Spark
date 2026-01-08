@@ -16,15 +16,15 @@ if ! grep -q "spark-master" /etc/hosts 2>/dev/null; then
     echo "127.0.0.1 spark-master" | tee -a /etc/hosts > /dev/null
 fi
 
-# Muda para o usuário spark
-cd /home/spark
+# Muda para o diretório de trabalho do Spark
+cd /opt/spark
 
 # Substitui variáveis de ambiente no spark-defaults.conf
 envsubst < ${SPARK_HOME}/conf/spark-defaults.conf > ${SPARK_HOME}/conf/spark-defaults.conf.tmp
 mv ${SPARK_HOME}/conf/spark-defaults.conf.tmp ${SPARK_HOME}/conf/spark-defaults.conf
 
-# Inicia History Server como usuário spark
-su -c "/opt/spark/sbin/start-history-server.sh" spark
+# Inicia History Server como root
+/opt/spark/sbin/start-history-server.sh
 
-# Inicia Master como usuário spark
-exec su -c "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master" spark
+# Inicia Master como root
+exec /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
