@@ -35,8 +35,10 @@ RUN wget -qO /tmp/${SPARK_TGZ} ${SPARK_DOWNLOAD_URL} && \
     mv ${SPARK_VERSION} /opt/spark && \
     rm /tmp/${SPARK_TGZ}
 
-# Cria o diretório de logs e dá permissão ao usuário spark
-RUN mkdir -p /opt/spark/logs && chown -R spark:spark /opt/spark
+# Cria diretórios necessários e ajusta permissões
+RUN mkdir -p /opt/spark/logs /tmp/spark-events && \
+    chown -R spark:spark /opt/spark /tmp/spark-events && \
+    chmod -R 755 /tmp/spark-events
 
 # Instala dependências Python
 COPY ../requirements.txt /tmp/requirements.txt
