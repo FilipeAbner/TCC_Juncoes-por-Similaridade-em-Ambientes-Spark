@@ -35,8 +35,8 @@ RUN wget -qO /tmp/${SPARK_TGZ} ${SPARK_DOWNLOAD_URL} && \
     mv ${SPARK_VERSION} /opt/spark && \
     rm /tmp/${SPARK_TGZ}
 
-# Cria o diretório de logs e dá permissão ao usuário spark
-RUN mkdir -p /opt/spark/logs && chown -R spark:spark /opt/spark
+# Cria o diretório de logs
+RUN mkdir -p /opt/spark/logs
 
 # Instala dependências Python
 COPY ../requirements.txt /tmp/requirements.txt
@@ -48,14 +48,12 @@ COPY spark-defaults.conf ${SPARK_HOME}/conf/spark-defaults.conf
 COPY log4j2.properties ${SPARK_HOME}/conf/log4j2.properties
 COPY entrypoint-worker.sh /usr/local/bin/entrypoint.sh
 
-# Torna scripts executáveis e ajusta permissões
+# Torna scripts executáveis
 RUN chmod +x ${SPARK_HOME}/conf/spark-env.sh && \
-    chmod +x /usr/local/bin/entrypoint.sh && \
-    chown -R spark:spark ${SPARK_HOME}/conf
+    chmod +x /usr/local/bin/entrypoint.sh
 
-# Nota: Container inicia como root para permitir modificação do /etc/hosts
-# O entrypoint script muda para o usuário spark após configuração
-WORKDIR /home/spark
+# Container executa como root para evitar problemas de permissão
+WORKDIR /opt/spark
 
 # Porta padrão do worker (UI)
 EXPOSE 8081

@@ -15,12 +15,12 @@ if ! grep -q "spark-worker" /etc/hosts 2>/dev/null; then
     echo "127.0.0.1 spark-worker" | tee -a /etc/hosts > /dev/null
 fi
 
-# Muda para o usuário spark
-cd /home/spark
+# Muda para o diretório de trabalho do Spark
+cd /opt/spark
 
 # Substitui variáveis de ambiente no spark-defaults.conf
 envsubst < ${SPARK_HOME}/conf/spark-defaults.conf > ${SPARK_HOME}/conf/spark-defaults.conf.tmp
 mv ${SPARK_HOME}/conf/spark-defaults.conf.tmp ${SPARK_HOME}/conf/spark-defaults.conf
 
-# Inicia Worker como usuário spark
-exec su -c "/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker ${SPARK_MASTER_URL}" spark
+# Inicia Worker como root
+exec /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker ${SPARK_MASTER_URL}
