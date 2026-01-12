@@ -290,7 +290,7 @@ def executar_juncao_similaridade(spark_session, dataset_a_rdd_particionado, data
             k=k,
             num_partitions=d,
             return_debug_info=False,
-            custom_partitioner='x_sign'
+            custom_partitioner='pivot_based'
         )
 
         tempo_bridk = time.time() - inicio_bridk
