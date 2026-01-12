@@ -130,21 +130,29 @@ class BridSpark:
         brid_final = Brid(all_candidates, metric_final)
         final_results = brid_final.search(query, k)
 
-        # Debug
+        # Sempre calcular estatísticas de cache
+        total_ops = metric_final.numberOfCalculations + metric_final.cacheHits
+        cache_hit_rate = (metric_final.cacheHits / total_ops * 100) if total_ops > 0 else 0
+        
+        # Sempre retornar estatísticas básicas de cache
+        debug_info = {
+            'distance_calculations': metric_final.numberOfCalculations,
+            'cache_hits': metric_final.cacheHits,
+            'cache_hit_rate': cache_hit_rate
+        }
+        
         if (return_debug_info):
+            # Adicionar informações detalhadas de debug
             print(f"\n Total de candidatos locais: {len(all_candidates)} \n", file=sys.stderr)            
             sorted_all = sorted(all_candidates, key=lambda c: brid_final.get_cached_distance(c, query))
             print(f"Candidatos ordenados (top 10): {[f'{c.getId()}:{brid_final.get_cached_distance(c, query):.4f}' for c in sorted_all[:10]]}", file=sys.stderr)
             print(f"Resultados BRIDk selecionados: {[f'{c.getId()}:{brid_final.get_cached_distance(c, query):.4f}' for c in final_results]}", file=sys.stderr)
-            
             print(f"\nResultados finais: {len(final_results)} tuplas")
-            print(f"Total de cálculos de distância: {metric_final.numberOfCalculations}")
-
-            debug_info = {
+            
+            debug_info.update({
                 'partition_candidates': partition_info,
                 'total_candidates': len(all_candidates),
                 'num_partitions': num_partitions
-            }
-            return final_results, debug_info
-        else:
-            return final_results
+            })
+        
+        return final_results, debug_info

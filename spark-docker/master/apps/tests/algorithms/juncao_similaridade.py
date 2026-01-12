@@ -206,7 +206,7 @@ def ler_dataset(caminho_arquivo):
     return dataset, metadados, descricoes
 
 
-def selecionar_amostra_dataset_a(dataset_a, max_consultas=None, seed=42):
+def selecionar_amostra_dataset_a(dataset_a, max_consultas=None, use_percent=False,seed=42):
     """
     Seleciona uma amostra do dataset A para usar como consultas.
     Se max_consultas for None, usa todo o dataset A.
@@ -219,6 +219,15 @@ def selecionar_amostra_dataset_a(dataset_a, max_consultas=None, seed=42):
     Returns:
         list: Lista de tuplas que serão usadas como consultas
     """
+    if use_percent:
+        percent = max_consultas
+        max_consultas = int(len(dataset_a) * percent / 100)
+
+        random.seed(seed)
+        amostra = random.sample(dataset_a, max_consultas)
+        print(f"\nSelecionando {percent}% do Dataset A: {max_consultas} tuplas como consultas")
+        return amostra
+    
     if max_consultas is None or max_consultas >= len(dataset_a):
         print(f"\nUsando TODAS as {len(dataset_a)} tuplas do Dataset A como consultas")
         return dataset_a
@@ -252,7 +261,10 @@ def executar_juncao_similaridade(spark_session, dataset_a_rdd_particionado, data
     
     # Estatísticas globais
     estatisticas_globais = {
-        'tempo_bridk': 0
+        'tempo_bridk': 0,
+        'total_distance_calculations': 0,
+        'total_cache_hits': 0,
+        'total_cache_hit_rate': 0
     }
     
     print(f"\nProcessando consultas...")
@@ -277,12 +289,17 @@ def executar_juncao_similaridade(spark_session, dataset_a_rdd_particionado, data
             query=consulta_a,
             k=k,
             num_partitions=d,
-            return_debug_info=True,
-            custom_partitioner='pivot_based'
+            return_debug_info=False,
+            custom_partitioner='x_sign'
         )
-        
+
         tempo_bridk = time.time() - inicio_bridk
         estatisticas_globais['tempo_bridk'] += tempo_bridk
+        
+        # Acumular estatísticas de cache
+        if debug_info:
+            estatisticas_globais['total_distance_calculations'] += debug_info.get('distance_calculations', 0)
+            estatisticas_globais['total_cache_hits'] += debug_info.get('cache_hits', 0)
         
         # Armazenar resultados
         resultado_info = {
@@ -295,8 +312,17 @@ def executar_juncao_similaridade(spark_session, dataset_a_rdd_particionado, data
         
         resultados[consulta_a.getId()] = resultado_info
     
-    print(f"\n  Progresso: 100% ({len(dataset_a_consultas)}/{len(dataset_a_consultas)} consultas processadas)")
+    # Calcular taxa média de acerto do cache
+    total_ops = estatisticas_globais['total_distance_calculations'] + estatisticas_globais['total_cache_hits']
+    if total_ops > 0:
+        estatisticas_globais['total_cache_hit_rate'] = (estatisticas_globais['total_cache_hits'] / total_ops) * 100
     
+    print(f"\n  Progresso: 100% ({len(dataset_a_consultas)}/{len(dataset_a_consultas)} consultas processadas)")
+    print(f"Tempo Execução Bridk: {estatisticas_globais['tempo_bridk']}s")
+    print(f"Total de cálculos de distância: {estatisticas_globais['total_distance_calculations']}")
+    print(f"Total de acertos no cache: {estatisticas_globais['total_cache_hits']}")
+    print(f"Taxa de acerto do cache: {estatisticas_globais['total_cache_hit_rate']:.2f}%")
+
     return resultados, estatisticas_globais
 
 # Particionar os objetos do dataset para o pivô mais próximo
@@ -324,15 +350,15 @@ def main():
     # para produção em datasets maiores, recomenda-se False
 
     GERAR_RELATORIO = True  # Altere para False para desabilitar relatórios
-    GERAR_GRAFICO = True   # Altere para False para desabilitar geração grafica
-    LISTAR_OBJETOS_POR_PIVO = True  # True: exibe objetos associados a cada pivô
+    GERAR_GRAFICO = False   # Altere para False para desabilitar geração grafica
+    LISTAR_OBJETOS_POR_PIVO = False  # True: exibe objetos associados a cada pivô
     # Criar diretório de resultados
     result_dir = criar_diretorio_resultado()
     
     # Definir caminhos dos datasets usuados na junção
-    caminho_dataset_a = "/apps/Datasets/Simples/3d_1.txt"
-    caminho_dataset_b = "/apps/Datasets/Simples/3d_2.txt"
-    
+    caminho_dataset_a = "/apps/Datasets/teste.txt"
+    caminho_dataset_b = "/apps/Datasets/Simples/points_geogebra_2.txt"
+
     # Ler Dataset A (consultas)
     dataset_a, metadados_a, descricoes_a = ler_dataset(caminho_dataset_a)
     
@@ -358,12 +384,12 @@ def main():
     metadados_a['num_dimensoes'] = dim_max
     metadados_b['num_dimensoes'] = dim_max
         
-    print(f"\nDataset A:" )
-    for tupla in dataset_a[:5]:
-        print(tupla)
-    print(f"\nDataset B:" )
-    for tupla in dataset_b[:5]:
-        print(tupla)
+    # print(f"\nDataset A:" )
+    # for tupla in dataset_a[:5]:
+    #     print(tupla)
+    # print(f"\nDataset B:" )
+    # for tupla in dataset_b[:5]:
+    #     print(tupla)
     spark = SparkSession.builder \
         .appName("Juncao por Similaridade - BRIDk") \
         .getOrCreate()
@@ -376,11 +402,12 @@ def main():
     # Usar None para todas as tuplas
     # max_consultas = 100  
     max_consultas = None
-    dataset_a_consultas = selecionar_amostra_dataset_a(dataset_a, max_consultas)
+    percent= False
+    dataset_a_consultas = selecionar_amostra_dataset_a(dataset_a, max_consultas,percent)
     
     # Parâmetros da junção
-    k = 3  # Número de vizinhos diversificados por consulta
-    d = 3   # Número de partições (ajuste conforme workers disponíveis)
+    k = 5  # Número de vizinhos diversificados por consulta
+    d = 2   # Número de partições (ajuste conforme workers disponíveis)
     # O numero de pivos é igual ao numero de partições
 
     pivos = selecionar_pivos_kmeans_plus_plus(dataset_b, d, seed=42)
@@ -408,7 +435,7 @@ def main():
         dataset_a_rdd_particionado=dataset_a_rdd_particionado,
         dataset_b_rdd_particionado=dataset_b_rdd_particionado,  
         k=k,
-        d=d,
+        d=d
     )
 
 # ----------------Relatorio ----------------------- 
@@ -492,7 +519,7 @@ def main():
         # Relatório textual
         gerar_relatorio_juncao(resultados, descricoes_a, descricoes_b,
                               metadados_a, metadados_b, estatisticas,
-                              output_report, max_exemplos=len(resultados),
+                              output_report, max_exemplos=20,
                               partition_counts=partition_counts,
                               pivos_info=pivos_info,
                               filtering_stats=estatisticas_filtragem)

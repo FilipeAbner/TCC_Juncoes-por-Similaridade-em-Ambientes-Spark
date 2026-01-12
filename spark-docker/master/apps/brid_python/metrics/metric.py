@@ -22,6 +22,7 @@ class Metric(ABC):
         Construtor da classe Metric.
         """
         self.numberOfCalculations: int = 0
+        self.cacheHits: int = 0  # Contador de acertos no cache
     
     @abstractmethod
     def distance(self, s: 'Point', t: 'Point') -> float:

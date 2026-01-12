@@ -54,6 +54,9 @@ class Brid(Generic[T]):
         key = (min(obj1.getId(), obj2.getId()), max(obj1.getId(), obj2.getId()))
         if key not in self._dist_cache:
             self._dist_cache[key] = self.metric.distance(obj1, obj2)
+        else:
+            # Incrementar contador de acertos no cache
+            self.metric.cacheHits += 1
         return self._dist_cache[key]
     
     def search(self, query: T, k: int, return_debug: bool = False) -> List[T]:
