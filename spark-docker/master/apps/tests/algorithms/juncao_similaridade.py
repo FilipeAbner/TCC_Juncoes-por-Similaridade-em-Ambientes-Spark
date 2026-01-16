@@ -127,6 +127,40 @@ def criar_diretorio_resultado():
     return result_dir
 
 
+def gerar_relatorio_simplificado(resultados, output_file):
+    """
+    Gera relatório simplificado no formato:
+    ID_consulta
+    ID_viz1 ID_viz2 ... ID_vizk
+    
+    Exemplo com k=3:
+    1
+    2 17 34
+    2
+    90 189 56
+    ...
+    
+    Este formato permite fácil comparação entre execução distribuída e centralizada.
+    
+    Args:
+        resultados: Dicionário com resultados da junção
+        output_file: Caminho do arquivo de saída
+    """
+    with open(output_file, 'w', encoding='utf-8') as f:
+        for consulta_id in sorted(resultados.keys()):
+            info = resultados[consulta_id]
+            resultado_b = info['resultado_b']
+            
+            # Escrever ID da consulta
+            f.write(f"{consulta_id}\n")
+            
+            # Escrever IDs dos vizinhos encontrados
+            ids_vizinhos = [str(tupla.getId()) for tupla in resultado_b]
+            f.write(' '.join(ids_vizinhos) + '\n')
+    
+    print(f"  ✓ Relatório simplificado gerado: {output_file}")
+
+
 def ler_dataset(caminho_arquivo):
     """
     Lê um dataset no formato padrão.
@@ -350,14 +384,15 @@ def main():
     # para produção em datasets maiores, recomenda-se False
 
     GERAR_RELATORIO = True  # Altere para False para desabilitar relatórios
+    GERAR_RELATORIO_SIMPLIFICADO = True  # Relatório simplificado (IDs apenas)
     GERAR_GRAFICO = False   # Altere para False para desabilitar geração grafica
     LISTAR_OBJETOS_POR_PIVO = False  # True: exibe objetos associados a cada pivô
     # Criar diretório de resultados
     result_dir = criar_diretorio_resultado()
     
     # Definir caminhos dos datasets usuados na junção
-    caminho_dataset_a = "/apps/Datasets/teste.txt"
-    caminho_dataset_b = "/apps/Datasets/Simples/points_geogebra_2.txt"
+    caminho_dataset_a = "/apps/Datasets/Simples/teste1.txt"
+    caminho_dataset_b = "/apps/Datasets/Simples/teste.txt"
 
     # Ler Dataset A (consultas)
     dataset_a, metadados_a, descricoes_a = ler_dataset(caminho_dataset_a)
@@ -516,13 +551,18 @@ def main():
         nome_arquivo_base = f"juncao_{metadados_a['nome_dataset']}_{metadados_b['nome_dataset']}"
         output_report = os.path.join(result_dir, f"{nome_arquivo_base}_relatorio.txt")
         
-        # Relatório textual
+        # Relatório textual detalhado
         gerar_relatorio_juncao(resultados, descricoes_a, descricoes_b,
                               metadados_a, metadados_b, estatisticas,
                               output_report, max_exemplos=20,
                               partition_counts=partition_counts,
                               pivos_info=pivos_info,
                               filtering_stats=estatisticas_filtragem)
+        
+        # Relatório simplificado (IDs apenas)
+        if GERAR_RELATORIO_SIMPLIFICADO:
+            output_simplificado = os.path.join(result_dir, f"{nome_arquivo_base}_simplificado.txt")
+            gerar_relatorio_simplificado(resultados, output_simplificado)
         
         # Gerar relatório de debug para consulta específica (se solicitado)
         if args.debug is not None:
