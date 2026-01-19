@@ -125,7 +125,7 @@ def calcular_distancia(tupla1, tupla2):
     return np.linalg.norm(coords1 - coords2)
 
 
-def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=42):
+def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=52):
     """
     Seleciona pivôs usando estratégia k-means++.
     
