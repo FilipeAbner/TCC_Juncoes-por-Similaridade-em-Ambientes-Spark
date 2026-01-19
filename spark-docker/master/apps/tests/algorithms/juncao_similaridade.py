@@ -43,6 +43,18 @@ def processar_argumentos():
         default=None,
         help='ID da consulta para gerar relatório de debug detalhado'
     )
+    parser.add_argument(
+        '--d1',
+        type=str,
+        default='/apps/Datasets/Sintético/Sint2D/sint2dDataset.txt',
+        help='Caminho para o Dataset A (consultas).'
+    )
+    parser.add_argument(
+        '--d2',
+        type=str,
+        default='/apps/Datasets/Sintético/Sint2D/sint2dDataset.txt',
+        help='Caminho para o Dataset B (busca).'
+    )
     return parser.parse_args()
 
 def calcular_distancia(tupla1, tupla2):
@@ -401,9 +413,13 @@ def main():
     # Criar diretório de resultados
     result_dir = criar_diretorio_resultado()
     
-    # Definir caminhos dos datasets usuados na junção
-    caminho_dataset_a = "/apps/Datasets/Reais/Nasa SISAP/nasa.txt"
-    caminho_dataset_b = "/apps/Datasets/Reais/Nasa SISAP/nasa.txt"
+    # Definir caminhos dos datasets usando argumentos ou padrões
+    caminho_dataset_a = args.d1
+    caminho_dataset_b = args.d2
+    
+    print(f"\nDatasets:")
+    print(f"  Dataset A (--d1): {caminho_dataset_a}")
+    print(f"  Dataset B (--d2): {caminho_dataset_b}")
 
     # Ler Dataset A (consultas)
     dataset_a, metadados_a, descricoes_a = ler_dataset(caminho_dataset_a)
