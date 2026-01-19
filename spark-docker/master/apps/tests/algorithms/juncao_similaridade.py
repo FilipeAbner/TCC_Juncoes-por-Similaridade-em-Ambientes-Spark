@@ -445,7 +445,21 @@ def main():
     d = 2   # Número de partições (ajuste conforme workers disponíveis)
     # O numero de pivos é igual ao numero de partições
 
-    pivos = selecionar_pivos_kmeans_plus_plus(dataset_b, d, seed=42)
+    # Configuração para seleção de pivôs
+    use_percent_pivos = False  # Se True, usa porcentagem; se False, usa d diretamente
+    percent_pivos = 5  # Porcentagem do dataset B para selecionar como pivôs (usado se use_percent_pivos=True)
+
+    if use_percent_pivos:
+        num_pivos = int(len(dataset_b) * percent_pivos / 100)
+        print(f"Selecionando {percent_pivos}% do Dataset B como pivôs: {num_pivos} pivôs")
+    else:
+        num_pivos = d
+        print(f"Selecionando {num_pivos} pivôs conforme parâmetro d")
+
+    pivos = selecionar_pivos_kmeans_plus_plus(dataset_b, num_pivos, seed=42)
+    
+    # Atualizar d para ser igual ao número de pivôs selecionados
+    d = len(pivos)
     
     # Broadcast dos pivôs
     pivos_bc = spark.sparkContext.broadcast(pivos)
