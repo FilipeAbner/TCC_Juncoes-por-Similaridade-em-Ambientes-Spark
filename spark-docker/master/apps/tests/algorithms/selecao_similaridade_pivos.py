@@ -158,45 +158,66 @@ def selecionar_pivos_kmeans_plus_plus(dataset, num_pivos, seed=52):
     
     pivos = []
     
-    # 1. Primeiro pivô: escolher aleatoriamente
+    if num_pivos >= len(dataset):
+        print(f"  AVISO: Número de pivôs ({num_pivos}) >= tamanho dataset ({len(dataset)})")
+        return random.sample(dataset, len(dataset))
+    
+    # 1. Primeiro pivô é escolhido aleatoriamente
     primeiro_pivo = random.choice(dataset)
     pivos.append(primeiro_pivo)
     pivos_ids = set([primeiro_pivo.getId()])
     
-    # 2. Pivôs seguintes: k-means++
+    # Pré-calcular distâncias ao quadrado do primeiro pivô para todas as tuplas
+    # eucledianSquare() já eleva ao quadrado
+    distancias_min = []
+    for tupla in dataset:
+        if tupla.getId() in pivos_ids:
+            distancias_min.append(0)
+        else:
+            dist_sq = metric.eucledianSquare(tupla, primeiro_pivo)
+            distancias_min.append(dist_sq)
+    
+    # 2. Pivôs seguintes: k-means++ com atualização incremental
     for i in range(1, num_pivos):
-        # Calcular distância mínima de cada ponto aos pivôs existentes
-        distancias_min = []
+        # Apenas comparar com o anterior (Só precisamos calcular para o pivô anterior)
+        ultimo_pivo = pivos[-1]
         
-        for tupla in dataset:
-            # Pula se já é pivô
+        for idx, tupla in enumerate(dataset):
             if tupla.getId() in pivos_ids:
-                distancias_min.append(0)
+                distancias_min[idx] = 0
                 continue
             
-            # Distância ao pivô mais próximo
-            dist_min = min([metric.distance(tupla, pivo) for pivo in pivos])
-            distancias_min.append(dist_min)
+            # Calcular distância ao quadrado apenas ao último pivô adicionado
+            dist_novo_pivo_sq = metric.eucledianSquare(tupla, ultimo_pivo)
+            
+            # Atualizar mínimo: usar o mínimo entre a distância antiga e a nova (ambas já ao quadrado)
+            distancias_min[idx] = min(distancias_min[idx], dist_novo_pivo_sq)
         
         # Converter para array numpy
-        distancias_min = np.array(distancias_min)
+        distancias_array = np.array(distancias_min)
         
-        # Calcular probabilidades proporcionais a distância²
-        probabilidades = distancias_min ** 2
+        # Calcular probabilidades proporcionais à distância² (já temos distância ao quadrado)
+        probabilidades = distancias_array
         soma_prob = probabilidades.sum()
         
         if soma_prob > 0:
             probabilidades = probabilidades / soma_prob
+            idx_proximo_pivo = np.random.choice(len(dataset), p=probabilidades)
         else:
-            # Se todas as distâncias são zero, usar probabilidade uniforme
-            probabilidades = np.ones(len(dataset)) / len(dataset)
+            # Se todas as distâncias são zero, escolher uniformemente entre não-selecionados
+            # Garantir que não re-selecionamos pivôs já escolhidos
+            indices_nao_selecionados = [idx for idx, tupla in enumerate(dataset) if tupla.getId() not in pivos_ids]
+            
+            if not indices_nao_selecionados:
+                raise ValueError("Erro: todos os pontos foram selecionados como pivôs (caso totalmente degenerado)")
+            
+            idx_proximo_pivo = np.random.choice(indices_nao_selecionados)
         
         # Selecionar próximo pivô
-        idx_proximo_pivo = np.random.choice(len(dataset), p=probabilidades)
         proximo_pivo = dataset[idx_proximo_pivo]
         pivos.append(proximo_pivo)
-        pivos_ids.add(proximo_pivo.getId())  # Adicionar ao conjunto
-            
+        pivos_ids.add(proximo_pivo.getId())
+    
     return pivos
 
 
