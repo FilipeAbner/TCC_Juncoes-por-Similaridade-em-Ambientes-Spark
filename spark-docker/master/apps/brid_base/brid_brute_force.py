@@ -60,23 +60,14 @@ else:
 from brid_python.types.tuple import Tuple
 from tests.algorithms.relatorio_juncao import gerar_estatisticas_juncao, gerar_relatorio_juncao, gerar_relatorio_debug
 
-
-# ============================================================================
-# IMPLEMENTAÇÃO DO ALGORITMO BRIDk CENTRALIZADO
-# ============================================================================
-
 class EstatisticasExecucao:
     """Classe para armazenar estatísticas de execução."""
     def __init__(self):
         self.calculos_distancia = 0
-        self.cache_hits = 0
-        self.cache = {}
     
     def reset(self):
         """Reseta as estatísticas."""
         self.calculos_distancia = 0
-        self.cache_hits = 0
-        self.cache = {}
 
 
 def calcular_distancia_euclidiana(tupla1, tupla2):
@@ -95,9 +86,9 @@ def calcular_distancia_euclidiana(tupla1, tupla2):
     return np.linalg.norm(coords1 - coords2)
 
 
-def obter_distancia_com_cache(tupla1, tupla2, estatisticas):
+def calcular_distancia(tupla1, tupla2, estatisticas):
     """
-    Obtém a distância entre duas tuplas, usando cache quando possível.
+    Calcula a distância entre duas tuplas (sem cache para evitar estouro de memória).
     
     Args:
         tupla1: Primeira tupla
@@ -107,22 +98,8 @@ def obter_distancia_com_cache(tupla1, tupla2, estatisticas):
     Returns:
         float: Distância entre as tuplas
     """
-    # Criar chave única baseada nos IDs e coordenadas para evitar colisões entre datasets
-    id1, id2 = tupla1.getId(), tupla2.getId()
-    coords1 = tuple(tupla1.getAttributes())
-    coords2 = tuple(tupla2.getAttributes())
-    chave = (id1, coords1, id2, coords2)
-    
-    # Verificar se está no cache
-    if chave in estatisticas.cache:
-        estatisticas.cache_hits += 1
-        return estatisticas.cache[chave]
-    
-    # Calcular e armazenar no cache
     distancia = calcular_distancia_euclidiana(tupla1, tupla2)
-    estatisticas.cache[chave] = distancia
     estatisticas.calculos_distancia += 1
-    
     return distancia
 
 
@@ -141,7 +118,7 @@ def calcular_nivel_influencia(tupla_s, tupla_t, estatisticas):
     Returns:
         float: Nível de influência (infinito se distância = 0)
     """
-    dist = obter_distancia_com_cache(tupla_s, tupla_t, estatisticas)
+    dist = calcular_distancia(tupla_s, tupla_t, estatisticas)
     if dist == 0:
         return float('inf')
     return 1.0 / dist
@@ -235,7 +212,7 @@ def bridk_centralizado(consulta, dataset_busca, k, estatisticas, debug_consulta_
     # Isso garante que processamos candidatos do mais próximo ao mais distante
     dataset_ordenado = sorted(
         dataset_busca,
-        key=lambda elem: obter_distancia_com_cache(elem, consulta, estatisticas)
+        key=lambda elem: calcular_distancia(elem, consulta, estatisticas)
     )
     
     if debug_mode:
@@ -257,7 +234,7 @@ def bridk_centralizado(consulta, dataset_busca, k, estatisticas, debug_consulta_
         
         # FILTRO 1: Não incluir a própria consulta como vizinho
         # Verifica se é o mesmo objeto (distância muito próxima de 0)
-        dist_para_consulta = obter_distancia_com_cache(candidato, consulta, estatisticas)
+        dist_para_consulta = calcular_distancia(candidato, consulta, estatisticas)
         if dist_para_consulta < 1e-10:  # Praticamente zero (mesma posição)
             if debug_mode:
                 print(f"\n[FILTRADO] ID={candidato.getId()} - É a própria consulta (dist={dist_para_consulta:.10f})")
@@ -327,13 +304,25 @@ def ler_dataset(caminho_arquivo):
     - Linha 4: se tem informação textual ao final (1 = sim, 0 = não)
     - Linha 5: tamanho do bloco (ignorado)
     - Linha 6: nome do dataset
-    - Demais linhas: dados no formato: ID dim1 dim2 ... dimN [texto_descritivo]
+    - Demais linhas: dados no formato: [ID] dim1 dim2 ... dimN [texto_descritivo]
     
     Returns:
         tuple: (dataset, metadados, descricoes)
     """
-    with open(caminho_arquivo, 'r') as f:
-        linhas = f.readlines()
+    # Tentar abrir o arquivo com diferentes codificações
+    codificacoes = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+    linhas = None
+    
+    for encoding in codificacoes:
+        try:
+            with open(caminho_arquivo, 'r', encoding=encoding) as f:
+                linhas = f.readlines()
+            break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    
+    if linhas is None:
+        raise UnicodeDecodeError(f"Não foi possível ler o arquivo {caminho_arquivo} com nenhuma codificação conhecida")
     
     # Ler metadados (primeiras 6 linhas)
     num_tuplas = int(linhas[0].strip())
@@ -368,20 +357,50 @@ def ler_dataset(caminho_arquivo):
             tupla_id = int(partes[0])
             inicio_coords = 1
         else:
-            tupla_id = i - 5  # ID sequencial
+            # Se não tem ID, usar ID sequencial baseado na linha
+            tupla_id = i - 5  # ID sequencial começando em 1
             inicio_coords = 0
         
         # Extrair coordenadas
         if tem_texto:
-            # Últimas num_dimensoes valores são coordenadas
-            coords = [float(partes[j]) for j in range(inicio_coords, inicio_coords + num_dimensoes)]
-            # Texto descritivo está após as coordenadas
-            texto_inicio = inicio_coords + num_dimensoes
-            if texto_inicio < len(partes):
-                descricoes[tupla_id] = ' '.join(partes[texto_inicio:])
+            # Tentar extrair exatamente num_dimensoes valores numéricos
+            coords = []
+            texto_parts = []
+            
+            for j in range(inicio_coords, len(partes)):
+                try:
+                    valor = float(partes[j])
+                    if len(coords) < num_dimensoes:
+                        coords.append(valor)
+                    else:
+                        # Se já temos num_dimensoes, o resto é texto
+                        texto_parts.append(partes[j])
+                except ValueError:
+                    # Não é um número, deve ser parte do texto descritivo
+                    texto_parts.extend(partes[j:])
+                    break
+            
+            # Verificar se conseguimos extrair o número correto de dimensões
+            if len(coords) != num_dimensoes:
+                print(f"Aviso: Tupla {tupla_id} tem {len(coords)} dimensões em vez de {num_dimensoes} esperadas")
+                # Preencher com zeros se necessário
+                while len(coords) < num_dimensoes:
+                    coords.append(0.0)
+            
+            # Texto descritivo
+            if texto_parts:
+                descricoes[tupla_id] = ' '.join(texto_parts)
         else:
             # Todas as partes após o ID são coordenadas
-            coords = [float(partes[j]) for j in range(inicio_coords, len(partes))]
+            try:
+                coords = [float(partes[j]) for j in range(inicio_coords, len(partes))]
+                # Verificar se temos o número correto de dimensões
+                if len(coords) != num_dimensoes:
+                    print(f"Aviso: Tupla {tupla_id} linha {i} tem {len(coords)} dimensões em vez de {num_dimensoes} esperadas. Pulando...")
+                    continue
+            except ValueError as e:
+                print(f"Aviso: Erro ao converter coordenadas na linha {i} (tupla {tupla_id}): {e}. Pulando linha...")
+                continue
         
         # Criar tupla
         tupla = Tuple(coords)
@@ -411,13 +430,26 @@ def selecionar_amostra_dataset_a(dataset_a, max_consultas=None, use_percent=Fals
     
     if max_consultas is None or max_consultas >= len(dataset_a):
         print(f"  Usando todas as {len(dataset_a)} tuplas do Dataset A como consultas")
-        return dataset_a.copy()
+        # Reatribuir IDs sequenciais para consultas
+        consultas_com_ids_sequenciais = []
+        for i, tupla in enumerate(dataset_a, 1):
+            nova_tupla = Tuple(tupla.getAttributes())
+            nova_tupla.setId(i)
+            consultas_com_ids_sequenciais.append(nova_tupla)
+        return consultas_com_ids_sequenciais
     else:
         np.random.seed(seed)
         indices = np.random.choice(len(dataset_a), max_consultas, replace=False)
         amostra = [dataset_a[i] for i in sorted(indices)]
         print(f"  Amostra selecionada: {len(amostra)} consultas de {len(dataset_a)} tuplas")
-        return amostra
+        
+        # Reatribuir IDs sequenciais para as consultas selecionadas
+        consultas_com_ids_sequenciais = []
+        for i, tupla in enumerate(amostra, 1):
+            nova_tupla = Tuple(tupla.getAttributes())
+            nova_tupla.setId(i)
+            consultas_com_ids_sequenciais.append(nova_tupla)
+        return consultas_com_ids_sequenciais
 
 
 def executar_juncao_brute_force(dataset_a_consultas, dataset_b, k=10, debug_consulta_id=None):
@@ -513,10 +545,6 @@ def executar_juncao_brute_force(dataset_a_consultas, dataset_b, k=10, debug_cons
     tempo_fim_total = time.time()
     tempo_total = tempo_fim_total - tempo_inicio_total
     
-    # Calcular taxa de acerto do cache
-    total_ops = estatisticas_global.calculos_distancia + estatisticas_global.cache_hits
-    cache_hit_rate = (estatisticas_global.cache_hits / total_ops * 100) if total_ops > 0 else 0
-    
     print(f"\n  Progresso: 100% ({len(dataset_a_consultas)}/{len(dataset_a_consultas)} consultas processadas)")
     print(f"\n{'=' * 80}")
     print(f"ESTATÍSTICAS DE EXECUÇÃO - BRIDk CENTRALIZADO")
@@ -526,9 +554,6 @@ def executar_juncao_brute_force(dataset_a_consultas, dataset_b, k=10, debug_cons
     print(f"")
     print(f"CÁLCULOS DE DISTÂNCIA:")
     print(f"  Total de cálculos: {estatisticas_global.calculos_distancia}")
-    print(f"  Cache hits: {estatisticas_global.cache_hits}")
-    print(f"  Tamanho do cache: {len(estatisticas_global.cache)} pares")
-    print(f"  Taxa de acerto do cache: {cache_hit_rate:.2f}%")
     print(f"  Taxa de cálculos/s: {estatisticas_global.calculos_distancia / tempo_total:.0f}")
     print(f"")
     print(f"VIZINHOS ENCONTRADOS:")
@@ -544,8 +569,6 @@ def executar_juncao_brute_force(dataset_a_consultas, dataset_b, k=10, debug_cons
     estatisticas = {
         'tempo_total': tempo_total,
         'distance_calculations': estatisticas_global.calculos_distancia,
-        'cache_hits': estatisticas_global.cache_hits,
-        'cache_hit_rate': cache_hit_rate,
         'total_vizinhos': total_vizinhos_encontrados,
         'consultas_completas': consultas_completas,
         'consultas_incompletas': consultas_incompletas
@@ -613,15 +636,15 @@ def main():
 
         # Fora do container - usar caminho relativo
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    caminho_dataset_a = os.path.join(script_dir, '..', 'Datasets', 'Sintético', 'Cluster2D','cluster2dDataset.txt')
-    caminho_dataset_b = os.path.join(script_dir, '..', 'Datasets', 'Sintético', 'Cluster2D', 'cluster2dDataset.txt')
+    caminho_dataset_a = os.path.join(script_dir, '..', 'Datasets', 'Reais', 'USCities','us.cities.txt')
+    caminho_dataset_b = os.path.join(script_dir, '..', 'Datasets', 'Reais', 'USCities','us.cities.txt')
     
     print(f"\n{'=' * 80}")
     print(f"JUNÇÃO POR SIMILARIDADE - FORÇA BRUTA CENTRALIZADA")
     print(f"{'=' * 80}\n")
     
     # Ler Dataset A (consultas)
-    print(f"Lendo Dataset A (consultas)...")
+    print(f"Lendo Dataset A (consultas)...") 
     dataset_a, metadados_a, descricoes_a = ler_dataset(caminho_dataset_a)
     print(f"  ✓ {len(dataset_a)} tuplas carregadas de {metadados_a['nome_dataset']}")
     
@@ -667,7 +690,8 @@ def main():
     
     # Relatório Simplificado
     if GERAR_RELATORIO_SIMPLIFICADO:
-        arquivo_simplificado = os.path.join(result_dir, "relatorio_juncao_simplificado_brute_force.txt")
+        nome_arquivo = f"{metadados_a['nome_dataset']}_{k}_simplificado.txt"
+        arquivo_simplificado = os.path.join(result_dir, nome_arquivo)
         gerar_relatorio_simplificado(resultados, arquivo_simplificado)
     
     # Relatório Detalhado (compatível com versão distribuída)
@@ -678,6 +702,7 @@ def main():
         # Adicionar estatísticas de execução ao relatório
         estatisticas['execucao'] = estatisticas_exec
         
+        nome_arquivo = f"juncao_{metadados_a['nome_dataset']}_{k}_detalhado.txt"
         arquivo_detalhado = os.path.join(result_dir, "relatorio_juncao_detalhado_brute_force.txt")
         gerar_relatorio_juncao(
             resultados=resultados,
