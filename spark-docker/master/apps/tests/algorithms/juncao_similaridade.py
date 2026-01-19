@@ -177,9 +177,20 @@ def ler_dataset(caminho_arquivo):
     Returns:
         tuple: (dataset, metadados, descricoes)
     """
-
-    with open(caminho_arquivo, 'r') as f:
-        linhas = f.readlines()
+    # Tentar abrir o arquivo com diferentes codificações
+    codificacoes = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+    linhas = None
+    
+    for encoding in codificacoes:
+        try:
+            with open(caminho_arquivo, 'r', encoding=encoding) as f:
+                linhas = f.readlines()
+            break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    
+    if linhas is None:
+        raise UnicodeDecodeError(f"Não foi possível ler o arquivo {caminho_arquivo} com nenhuma codificação conhecida")
     
     # Ler metadados (primeiras 6 linhas)
     num_tuplas = int(linhas[0].strip())
@@ -391,8 +402,8 @@ def main():
     result_dir = criar_diretorio_resultado()
     
     # Definir caminhos dos datasets usuados na junção
-    caminho_dataset_a = "/apps/Datasets/Simples/teste1.txt"
-    caminho_dataset_b = "/apps/Datasets/Simples/teste.txt"
+    caminho_dataset_a = "/apps/Datasets/Reais/Nasa SISAP/nasa.txt"
+    caminho_dataset_b = "/apps/Datasets/Reais/Nasa SISAP/nasa.txt"
 
     # Ler Dataset A (consultas)
     dataset_a, metadados_a, descricoes_a = ler_dataset(caminho_dataset_a)
@@ -436,8 +447,8 @@ def main():
     # Para testes utilizar um numero limitado de consultas
     # Usar None para todas as tuplas
     # max_consultas = 100  
-    max_consultas = None
-    percent= False
+    max_consultas = 5
+    percent= True
     dataset_a_consultas = selecionar_amostra_dataset_a(dataset_a, max_consultas,percent)
     
     # Parâmetros da junção
@@ -446,8 +457,8 @@ def main():
     # O numero de pivos é igual ao numero de partições
 
     # Configuração para seleção de pivôs
-    use_percent_pivos = False  # Se True, usa porcentagem; se False, usa d diretamente
-    percent_pivos = 5  # Porcentagem do dataset B para selecionar como pivôs (usado se use_percent_pivos=True)
+    use_percent_pivos = True  # Se True, usa porcentagem; se False, usa d diretamente
+    percent_pivos = 1  # Porcentagem do dataset B para selecionar como pivôs (usado se use_percent_pivos=True)
 
     if use_percent_pivos:
         num_pivos = int(len(dataset_b) * percent_pivos / 100)
@@ -460,7 +471,8 @@ def main():
     
     # Atualizar d para ser igual ao número de pivôs selecionados
     d = len(pivos)
-    
+    print(f'Quantiodade de pivos igual a {d}')
+
     # Broadcast dos pivôs
     pivos_bc = spark.sparkContext.broadcast(pivos)
     
