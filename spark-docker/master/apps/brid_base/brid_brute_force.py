@@ -277,6 +277,18 @@ def processar_argumentos():
         default=None,
         help='ID da consulta para gerar relatório de debug detalhado'
     )
+    parser.add_argument(
+        '--d1',
+        type=str,
+        default=None,
+        help='Caminho para o Dataset A (consultas). Se não especificado, usa caminho padrão'
+    )
+    parser.add_argument(
+        '--d2',
+        type=str,
+        default=None,
+        help='Caminho para o Dataset B (busca). Se não especificado, usa caminho padrão'
+    )
     return parser.parse_args()
 
 
@@ -652,11 +664,24 @@ def main():
     result_dir = criar_diretorio_resultado()
     
     # Definir caminhos dos datasets
-
+    # Usar argumentos se fornecidos, senão usar caminho padrão
+    if args.d1:
+        caminho_dataset_a = args.d1
+    else:
         # Fora do container - usar caminho relativo
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    caminho_dataset_a = os.path.join(script_dir, '..', 'Datasets', 'Reais', 'USCities','us.cities.txt')
-    caminho_dataset_b = os.path.join(script_dir, '..', 'Datasets', 'Reais', 'USCities','us.cities.txt')
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        caminho_dataset_a = os.path.join(script_dir, '..', 'Datasets', 'Reais', 'USCities','us.cities.txt')
+    
+    if args.d2:
+        caminho_dataset_b = args.d2
+    else:
+        # Fora do container - usar caminho relativo
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        caminho_dataset_b = os.path.join(script_dir, '..', 'Datasets', 'Reais', 'USCities','us.cities.txt')
+    
+    print(f"\nDatasets:")
+    print(f"  Dataset A (--d1): {caminho_dataset_a}")
+    print(f"  Dataset B (--d2): {caminho_dataset_b}")
     
     print(f"\n{'=' * 80}")
     print(f"JUNÇÃO POR SIMILARIDADE - FORÇA BRUTA CENTRALIZADA")
