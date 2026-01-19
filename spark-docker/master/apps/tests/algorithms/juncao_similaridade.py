@@ -46,14 +46,20 @@ def processar_argumentos():
     parser.add_argument(
         '--d1',
         type=str,
-        default='/apps/Datasets/Sintético/Sint2D/sint2dDataset.txt',
+        default='/apps/Datasets/Sintético/Sint2D-Gaussiana/sint2g.dataset.txt',
         help='Caminho para o Dataset A (consultas).'
     )
     parser.add_argument(
         '--d2',
         type=str,
-        default='/apps/Datasets/Sintético/Sint2D/sint2dDataset.txt',
+        default='/apps/Datasets/Sintético/Sint2D-Gaussiana/sint2g.dataset.txt',
         help='Caminho para o Dataset B (busca).'
+    )
+    parser.add_argument(
+        '--k',
+        type=int,
+        default=5,
+        help='Número de vizinhos diversificados por consulta. Padrão: 5'
     )
     return parser.parse_args()
 
@@ -468,7 +474,7 @@ def main():
     dataset_a_consultas = selecionar_amostra_dataset_a(dataset_a, max_consultas,percent)
     
     # Parâmetros da junção
-    k = 5  # Número de vizinhos diversificados por consulta
+    k = args.k  # Número de vizinhos diversificados por consulta (via argumento --k)
     d = 2   # Número de partições (ajuste conforme workers disponíveis)
     # O numero de pivos é igual ao numero de partições
 
