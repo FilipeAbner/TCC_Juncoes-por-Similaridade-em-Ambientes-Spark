@@ -76,6 +76,12 @@ def comparar_resultados(dist_result, central_result, output_file=None):
     # Consultas em ambos os resultados
     consultas_comuns = set(dist_result.keys()) & set(central_result.keys())
     
+    # Verificar se há consultas em comum
+    if not consultas_comuns:
+        print("AVISO: Nenhuma consulta em comum encontrada entre os resultados!")
+        print(f"  IDs no Distribuído (primeiros 10): {sorted(list(dist_result.keys()))[:10]}")
+        print(f"  IDs no Centralizado (primeiros 10): {sorted(list(central_result.keys()))[:10]}")
+    
     for consulta_id in sorted(consultas_comuns):
         total_consultas += 1
         
@@ -135,9 +141,16 @@ def comparar_resultados(dist_result, central_result, output_file=None):
     
     relatorio.append("RESUMO GERAL")
     relatorio.append("-" * 80)
+    relatorio.append(f"Total de consultas no Distribuído: {len(dist_result)}")
+    relatorio.append(f"Total de consultas no Centralizado: {len(central_result)}")
     relatorio.append(f"Total de consultas comparadas: {total_consultas}")
-    relatorio.append(f"Consultas com resultados idênticos: {consultas_identicas} ({consultas_identicas/total_consultas*100:.1f}%)")
-    relatorio.append(f"Consultas com resultados diferentes: {consultas_diferentes} ({consultas_diferentes/total_consultas*100:.1f}%)")
+    
+    if total_consultas > 0:
+        relatorio.append(f"Consultas com resultados idênticos: {consultas_identicas} ({consultas_identicas/total_consultas*100:.1f}%)")
+        relatorio.append(f"Consultas com resultados diferentes: {consultas_diferentes} ({consultas_diferentes/total_consultas*100:.1f}%)")
+    else:
+        relatorio.append("ERRO: Nenhuma consulta em comum para comparar!")
+        relatorio.append("Verifique se os IDs das consultas correspondem entre os arquivos.")
     relatorio.append("")
     
     relatorio.append("MÉTRICAS DE SIMILARIDADE (Médias)")
