@@ -566,7 +566,7 @@ def main():
     # Gerar relatórios (se habilitado)
     if GERAR_RELATORIO:
         nome_arquivo_base = f"juncao_{metadados_a['nome_dataset']}_{metadados_b['nome_dataset']}"
-        output_report = os.path.join(result_dir, f"{nome_arquivo_base}_relatorio.txt")
+        output_report = os.path.join(result_dir, f"{nome_arquivo_base}_{k}_relatorio.txt")
         
         # Relatório textual detalhado
         gerar_relatorio_juncao(resultados, descricoes_a, descricoes_b,
@@ -578,7 +578,7 @@ def main():
         
         # Relatório simplificado (IDs apenas)
         if GERAR_RELATORIO_SIMPLIFICADO:
-            output_simplificado = os.path.join(result_dir, f"{nome_arquivo_base}_simplificado.txt")
+            output_simplificado = os.path.join(result_dir, f"{nome_arquivo_base}_{k}_simplificado.txt")
             gerar_relatorio_simplificado(resultados, output_simplificado)
         
         # Gerar relatório de debug para consulta específica (se solicitado)
