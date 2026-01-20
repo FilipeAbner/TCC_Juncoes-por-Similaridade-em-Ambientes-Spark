@@ -26,6 +26,7 @@ from brid_python.spark.brid_spark import BridSpark
 from brid_python.types.tuple import Tuple
 from relatorio_juncao import gerar_estatisticas_juncao, gerar_relatorio_juncao, gerar_relatorio_debug
 from selecao_similaridade_pivos import selecionar_pivos_kmeans_plus_plus
+from utilidades_juncao import selecionar_amostra_dataset_a
 
 def processar_argumentos():
     """
@@ -267,38 +268,6 @@ def ler_dataset(caminho_arquivo):
         dataset.append(tupla)
     
     return dataset, metadados, descricoes
-
-
-def selecionar_amostra_dataset_a(dataset_a, max_consultas=None, use_percent=False,seed=42):
-    """
-    Seleciona uma amostra do dataset A para usar como consultas.
-    Se max_consultas for None, usa todo o dataset A.
-    
-    Args:
-        dataset_a: Dataset completo A
-        max_consultas: Número máximo de consultas (None = todas)
-        seed: Semente para reprodutibilidade
-    
-    Returns:
-        list: Lista de tuplas que serão usadas como consultas
-    """
-    if use_percent:
-        percent = max_consultas
-        max_consultas = int(len(dataset_a) * percent / 100)
-
-        random.seed(seed)
-        amostra = random.sample(dataset_a, max_consultas)
-        print(f"\nSelecionando {percent}% do Dataset A: {max_consultas} tuplas como consultas")
-        return amostra
-    
-    if max_consultas is None or max_consultas >= len(dataset_a):
-        print(f"\nUsando TODAS as {len(dataset_a)} tuplas do Dataset A como consultas")
-        return dataset_a
-    else:
-        random.seed(seed)
-        amostra = random.sample(dataset_a, max_consultas)
-        print(f"\nSelecionadas {max_consultas} tuplas aleatórias do Dataset A como consultas")
-        return amostra
 
 
 def executar_juncao_similaridade(spark_session, dataset_a_rdd_particionado, dataset_b_rdd_particionado, k=10, d=1):

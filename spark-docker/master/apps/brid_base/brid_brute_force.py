@@ -60,6 +60,7 @@ else:
 
 from brid_python.types.tuple import Tuple
 from tests.algorithms.relatorio_juncao import gerar_estatisticas_juncao, gerar_relatorio_juncao, gerar_relatorio_debug
+from tests.algorithms.utilidades_juncao import selecionar_amostra_dataset_a
 
 class EstatisticasExecucao:
     """Classe para armazenar estatísticas de execução."""
@@ -370,6 +371,12 @@ def ler_dataset(caminho_arquivo):
         if not linha:
             continue
         
+        # Verificar se a linha contém apenas caracteres válidos para números e espaços
+        import re
+        if not re.match(r'^[\d\s\.\-\+eE]+$', linha):
+            print(f"Aviso: Linha {i} contém caracteres inválidos: '{linha[:50]}...'. Pulando linha...")
+            continue
+        
         partes = linha.split()
         
         if tem_id:
@@ -427,66 +434,6 @@ def ler_dataset(caminho_arquivo):
         dataset.append(tupla)
     
     return dataset, metadados, descricoes
-
-
-def selecionar_amostra_dataset_a(dataset_a, max_consultas=None, use_percent=False, seed=42, tem_id=True):
-    """
-    Seleciona uma amostra do dataset A para usar como consultas.
-    Se max_consultas for None, usa todo o dataset A.
-    
-    Args:
-        dataset_a: Dataset completo A
-        max_consultas: Número máximo de consultas (None = todas)
-        use_percent: Se True, max_consultas é uma porcentagem
-        seed: Semente para reprodutibilidade
-        tem_id: Se True, mantém os IDs originais; se False, gera IDs sequenciais
-    
-    Returns:
-        list: Lista de tuplas que serão usadas como consultas
-    """
-    if use_percent:
-        max_consultas = int(len(dataset_a) * max_consultas / 100)
-        print(f"  Usando {max_consultas} consultas ({max_consultas / len(dataset_a) * 100:.1f}% do dataset A)")
-        random.seed(seed)
-        amostra = random.sample(dataset_a, max_consultas)
-        # Manter IDs originais (já vem do dataset)
-        if not tem_id:
-            # Gerar IDs sequenciais apenas se o dataset não tem IDs
-            amostra_com_ids = []
-            for i, tupla in enumerate(amostra, 1):
-                nova_tupla = Tuple(tupla.getAttributes())
-                nova_tupla.setId(i)
-                amostra_com_ids.append(nova_tupla)
-            return amostra_com_ids
-        return amostra
-    
-    if max_consultas is None or max_consultas >= len(dataset_a):
-        print(f"  Usando todas as {len(dataset_a)} tuplas do Dataset A como consultas")
-        # Manter IDs originais se o dataset tem IDs, senão gerar sequenciais
-        if tem_id:
-            return dataset_a
-        else:
-            consultas_com_ids_sequenciais = []
-            for i, tupla in enumerate(dataset_a, 1):
-                nova_tupla = Tuple(tupla.getAttributes())
-                nova_tupla.setId(i)
-                consultas_com_ids_sequenciais.append(nova_tupla)
-            return consultas_com_ids_sequenciais
-    else:
-        random.seed(seed)
-        amostra = random.sample(dataset_a, max_consultas)
-        print(f"  Amostra selecionada: {len(amostra)} consultas de {len(dataset_a)} tuplas")
-        
-        # Manter IDs originais se o dataset tem IDs, senão gerar sequenciais
-        if tem_id:
-            return amostra
-        else:
-            consultas_com_ids_sequenciais = []
-            for i, tupla in enumerate(amostra, 1):
-                nova_tupla = Tuple(tupla.getAttributes())
-                nova_tupla.setId(i)
-                consultas_com_ids_sequenciais.append(nova_tupla)
-            return consultas_com_ids_sequenciais
 
 
 def executar_juncao_brute_force(dataset_a_consultas, dataset_b, k=10, debug_consulta_id=None):
