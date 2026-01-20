@@ -289,6 +289,12 @@ def processar_argumentos():
         default=None,
         help='Caminho para o Dataset B (busca). Se não especificado, usa caminho padrão'
     )
+    parser.add_argument(
+        '--k',
+        type=int,
+        default=5,
+        help='Número de vizinhos diversificados desejados (padrão: 5)'
+    )
     return parser.parse_args()
 
 
@@ -715,7 +721,7 @@ def main():
     dataset_a_consultas = selecionar_amostra_dataset_a(dataset_a, max_consultas, percent, seed=42, tem_id=metadados_a['tem_id'])
     
     # Parâmetros da junção
-    k = 5  # Número de vizinhos diversificados por consulta
+    k = args.k  # Número de vizinhos diversificados por consulta
     
     print(f"\nParâmetros da junção:")
     print(f"  k (vizinhos diversificados desejados): {k}")
