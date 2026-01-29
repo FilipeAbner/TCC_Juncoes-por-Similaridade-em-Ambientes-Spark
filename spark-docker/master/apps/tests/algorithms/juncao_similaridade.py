@@ -62,6 +62,12 @@ def processar_argumentos():
         default=5,
         help='Número de vizinhos diversificados por consulta. Padrão: 5'
     )
+    parser.add_argument(
+        '--p',
+        type=int,
+        default=1,
+        help='Porcentagem do Dataset B para selecionar como pivôs. Se não informado, usa 1 pivô.'
+    )
     return parser.parse_args()
 
 def calcular_distancia(tupla1, tupla2):
@@ -438,24 +444,24 @@ def main():
     # Para testes utilizar um numero limitado de consultas
     # Usar None para todas as tuplas
     # max_consultas = 100  
-    max_consultas = 5
-    percent= True
+    max_consultas = 100
+    percent= False
     dataset_a_consultas = selecionar_amostra_dataset_a(dataset_a, max_consultas,percent)
     
     # Parâmetros da junção
     k = args.k  # Número de vizinhos diversificados por consulta (via argumento --k)
-    d = 2   # Número de partições (ajuste conforme workers disponíveis)
+    # d = 2   # Número de partições == numero de pivos
     # O numero de pivos é igual ao numero de partições
 
     # Configuração para seleção de pivôs
-    use_percent_pivos = True  # Se True, usa porcentagem; se False, usa d diretamente
-    percent_pivos = 1  # Porcentagem do dataset B para selecionar como pivôs (usado se use_percent_pivos=True)
+    use_percent_pivos = False  # Se True, usa porcentagem; se False, usa d diretamente
+    qtd_pivos = args.p  # Porcentagem do dataset B para selecionar como pivôs (usado se use_percent_pivos=True)
 
     if use_percent_pivos:
-        num_pivos = int(len(dataset_b) * percent_pivos / 100)
-        print(f"Selecionando {percent_pivos}% do Dataset B como pivôs: {num_pivos} pivôs")
+        num_pivos = max(1, int(len(dataset_b) * qtd_pivos / 100))
+        print(f"Selecionando {qtd_pivos}% do Dataset B como pivôs: {num_pivos} pivôs")
     else:
-        num_pivos = d
+        num_pivos = qtd_pivos
         print(f"Selecionando {num_pivos} pivôs conforme parâmetro d")
 
     pivos = selecionar_pivos_kmeans_plus_plus(dataset_b, num_pivos, seed=42)
@@ -565,7 +571,7 @@ def main():
 
     # Gerar relatórios (se habilitado)
     if GERAR_RELATORIO:
-        nome_arquivo_base = f"juncao_{metadados_a['nome_dataset']}_{metadados_b['nome_dataset']}"
+        nome_arquivo_base = f"juncao_{metadados_a['nome_dataset']}_{metadados_b['nome_dataset']}_p{d}"
         output_report = os.path.join(result_dir, f"{nome_arquivo_base}_{k}_relatorio.txt")
         
         # Relatório textual detalhado
@@ -578,7 +584,7 @@ def main():
         
         # Relatório simplificado (IDs apenas)
         if GERAR_RELATORIO_SIMPLIFICADO:
-            output_simplificado = os.path.join(result_dir, f"{nome_arquivo_base}_{k}_simplificado.txt")
+            output_simplificado = os.path.join(result_dir, f"{nome_arquivo_base}_{k}_p{d}_simplificado.txt")
             gerar_relatorio_simplificado(resultados, output_simplificado)
         
         # Gerar relatório de debug para consulta específica (se solicitado)
